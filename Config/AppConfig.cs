@@ -94,7 +94,7 @@ public static class ConfigStore
         if (!File.Exists(FilePath))
         {
             var def = Default();
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(def, Json));
+            Save(def);
             return def;
         }
         try
@@ -108,6 +108,20 @@ public static class ConfigStore
             Log.Write($"config.json 로드 실패, 기본값 사용: {ex.Message}");
             return Default();
         }
+    }
+
+    public static void Save(AppConfig cfg)
+    {
+        Validate(cfg);
+        Directory.CreateDirectory(Dir);
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(cfg, Json));
+    }
+
+    /// <summary>설정 문자열을 파싱만 해서 검증(저장 없이 설정 창의 즉시 검사용). 오류 메시지 반환, 성공 시 null.</summary>
+    public static string? TryParse(string json)
+    {
+        try { Validate(JsonSerializer.Deserialize<AppConfig>(json, Json) ?? throw new InvalidDataException("빈 설정")); return null; }
+        catch (Exception ex) { return ex.Message; }
     }
 
     static void Validate(AppConfig c)

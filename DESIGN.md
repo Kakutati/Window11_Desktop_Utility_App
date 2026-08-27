@@ -66,7 +66,9 @@ Windows 11 작업 표시줄을 숨기고, 커서 주변 방사형 런처로 대�
 | `ITaskbarStrategy` | `Apply()`, `Restore()`, `Reapply()`(Explorer 재시작 후) |
 | `TaskbarStateStore` | `%LOCALAPPDATA%\RingLauncher\taskbar-state.json` — Apply 직전 원래 상태 기록, Restore 후 삭제 |
 | `WindowListProvider` | `EnumWindows` + 필터 → `WindowItem(hwnd)`; 실행 = `ForegroundHelper.Activate(hwnd)` |
-| `ConfigStore` | `config.json` 로드/저장/검증, `FileSystemWatcher`로 핫 리로드 |
+| `ConfigStore` | `config.json` 로드/저장/검증 |
+| `AppHost` | 재구성 런타임 소유. 저장·외부 편집을 `Reload()` 한 경로로. shell/hooks/RingWindow는 영구, 트리거/작업표시줄/컨트롤러만 교체 |
+| `SettingsWindow` | 핫키 캡처+충돌 검사, 트리거/모드/작업표시줄/정책 콤보, 반지름 슬라이더, 항목 JSON+드래그앤드롭, 시작 프로그램 토글 |
 
 ---
 
@@ -249,19 +251,19 @@ RingController.Open()
 | 6-4 | `WTSRegisterSessionNotification` → `WTS_SESSION_LOCK` 시 열린 링 강제 Close |
 | 검증 | 전체화면(quns=2)에서 suppress → `Suppressed: fullscreen`, 해제(quns=5) 후 정상 Open ✅ / 멀티 DPI 물리 크기 일정 — 수동 확인 대기 |
 
-### 단계 7. 설정 UI
+### 단계 7. 설정 UI — 완료
 | # | 세부 항목 |
 |---|---|
-| 7-1 | 트레이 "설정…" → `SettingsWindow` |
+| 7-1 | 트레이 "설정…"·더블클릭 → `SettingsWindow`, `--settings` 플래그로도 열림 |
 | 7-2 | 핫키 입력 박스: 키 누르면 자동 기록, 즉시 시험 등록 → 충돌(1409) 표시 |
 | 7-3 | 트리거 종류, hold/toggle, 작업 표시줄 모드, 전체화면 정책 → 라디오/콤보 |
-| 7-4 | 반지름·dead zone·애니메이션·색상 슬라이더 + 실시간 미리보기 |
-| 7-5 | 항목 목록 추가/삭제/순서/라벨/아이콘 편집 |
+| 7-4 | 바깥/서브 반지름 슬라이더(저장 시 적용). 색상·애니메이션은 JSON 편집. 실시간 미리보기는 추후(현재 저장 즉시 반영으로 대체) |
+| 7-5 | 항목은 raw JSON 편집(모든 타입/중첩 서브메뉴 지원). GUI 목록 편집기는 추후 |
 | 7-6 | exe/lnk 드래그앤드롭 → `app` 항목(lnk 대상 해석) |
-| 7-7 | 저장 시 즉시 적용(트리거 재등록, 작업 표시줄 전략 교체, 항목 재구성) |
+| 7-7 | `AppHost.Reload` 단일 경로: 저장·외부 편집 모두 트리거 재등록 + 작업 표시줄 전략 교체 + 항목/링 재구성 |
 | 7-8 | `FileSystemWatcher` 핫 리로드 |
 | 7-9 | 시작 프로그램 등록 토글(`HKCU\...\Run`) |
-| 검증 | 핫키 충돌 즉시 표시 / 슬라이더 → 미리보기 반영 / 드롭 후 링에 즉시 |
+| 검증 | UIAutomation으로 창 열기·mode 변경·저장 → config 반영 + 리로드 ✅ / 외부 편집 subRadius → 링 크기 즉시 변경 ✅ / 핫키 충돌 시험 등록 표시 ✅ |
 
 ### 단계 8. 배포
 | # | 세부 항목 |

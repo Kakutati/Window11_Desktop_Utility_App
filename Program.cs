@@ -1,17 +1,15 @@
-using System.Diagnostics;
 using System.Windows;
 using RingLauncher.Config;
-using RingLauncher.Core;
 using RingLauncher.Interop;
-using RingLauncher.Items;
 using RingLauncher.Shell;
-using RingLauncher.Triggers;
 using RingLauncher.UI;
 
 namespace RingLauncher;
 
 static class Program
 {
+    static SettingsWindow? _settings;
+
     [STAThread]
     static int Main(string[] args)
     {
@@ -29,54 +27,41 @@ static class Program
         TaskbarController.RestoreFromFile(); // 이전 비정상 종료 잔여 복구
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        var cfg = ConfigStore.Load();
-        var source = ItemFactory.CreateSource(cfg.Items, cfg.Policy);
-        using var shell = new ShellEventWindow();
-        using var taskbar = new TaskbarController(cfg.Taskbar, shell);
-        var win = new RingWindow(cfg.Ring);
-        var toggle = cfg.Trigger.Mode.Equals("toggle", StringComparison.OrdinalIgnoreCase);
-        using var hooks = new LowLevelHookHost(); // 훅 트리거가 Start()할 때만 실제 설치
-        using ITrigger trigger = cfg.Trigger.Type.ToLowerInvariant() switch
-        {
-            "ctrldoubletap" => new CtrlDoubleTapTrigger(hooks, cfg.Trigger.DoubleTapMs, toggle),
-            "middlehold" => new MiddleHoldTrigger(hooks, cfg.Trigger.HoldMs, toggle),
-            _ => new HotkeyTrigger(shell, cfg.Trigger.Hotkey, toggle),
-        };
-        if (trigger is not HotkeyTrigger)
-            Log.Write("훅 트리거: 관리자 권한 창이 활성일 때는 입력이 전달되지 않아 동작하지 않습니다(UIPI). 그 경우 핫키 트리거를 쓰세요.");
-        var ctrl = new RingController(win, trigger, shell, cfg.Ring, cfg.Policy, source);
+        // 리로드 후 설정 창은 열린 채 둔다(저장 직후 사라지면 불편). 외부 편집 반영만 로그.
+        var host = new AppHost(_ => { });
 
-        // 어떤 경로로 죽든 작업 표시줄은 되돌린다 (강제 종료는 상태 파일 + 다음 실행 시 복구)
-        app.DispatcherUnhandledException += (_, e) => { Log.Write(e.Exception); taskbar.Restore(); };
-        AppDomain.CurrentDomain.UnhandledException += (_, e) => { Log.Write(e.ExceptionObject.ToString() ?? "unknown"); taskbar.Restore(); };
+        app.DispatcherUnhandledException += (_, e) => host.HandleCrash(e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => host.HandleCrash(e.ExceptionObject as Exception ?? new Exception(e.ExceptionObject.ToString()));
         TaskScheduler.UnobservedTaskException += (_, e) => Log.Write(e.Exception);
-        app.SessionEnding += (_, _) => taskbar.Restore();
+        app.SessionEnding += (_, _) => host.RestoreTaskbar();
 
-        try { ctrl.Start(); }
+        try { host.Start(); }
         catch (Exception ex)
         {
             Log.Write(ex);
             MessageBox.Show(ex.Message, "RingLauncher", MessageBoxButton.OK, MessageBoxImage.Error);
+            host.RestoreTaskbar();
             return 1;
         }
-        taskbar.Apply();
-        Log.Write($"시작: 트리거={cfg.Trigger.Type}/{cfg.Trigger.Hotkey} ({cfg.Trigger.Mode}), 작업 표시줄={cfg.Taskbar.Mode}, 항목={cfg.Items.Count}");
 
         using var tray = new TrayIcon(
-            restart: () =>
-            {
-                ctrl.Stop();
-                taskbar.Restore();
-                mutex.ReleaseMutex();
-                Process.Start(Environment.ProcessPath!);
-                app.Shutdown();
-            },
-            restoreTaskbar: taskbar.Restore,
+            openSettings: () => ShowSettings(host),
+            restoreTaskbar: host.RestoreTaskbar,
             exit: app.Shutdown);
 
+        if (args.Contains("--settings")) ShowSettings(host);
+
         app.Run();
-        ctrl.Stop();
-        taskbar.Restore();
+        host.Dispose();
         return 0;
+    }
+
+    static void ShowSettings(AppHost host)
+    {
+        if (_settings is { IsVisible: true }) { _settings.Activate(); return; }
+        _settings = new SettingsWindow(host.Config, host.Save);
+        _settings.Closed += (_, _) => _settings = null;
+        _settings.Show();
+        _settings.Activate();
     }
 }
