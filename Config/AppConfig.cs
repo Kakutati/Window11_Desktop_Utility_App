@@ -137,7 +137,8 @@ public static class ConfigStore
     {
         Items =
         {
-            new() { Type = "app", Label = "터미널", Path = "wt.exe" },
+            new() { Type = "search", Label = "검색" },
+            new() { Type = "quick", Action = "start", Label = "시작" },
             new() { Type = "app", Label = "탐색기", Path = "explorer.exe" },
             new()
             {

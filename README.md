@@ -22,6 +22,8 @@ RingLauncher.exe
 - **toggle 모드**: 한 번 누르면 열리고, 다시 누르거나 항목 클릭 → 실행/취소.
 - 서브메뉴 항목은 바깥으로 밀거나 잠깐 머무르면 바깥 링으로 펼쳐집니다.
 
+기본 항목에 **검색**(설치된 프로그램을 타이핑으로 찾아 실행)과 **시작**(Windows 시작 메뉴 열기)이 포함됩니다. 검색 창은 ↑/↓ 이동, Enter 실행, ESC/포커스 이탈 시 닫힘.
+
 ## 설정
 
 트레이 아이콘 **더블클릭** 또는 우클릭 → **설정…** (또는 `RingLauncher.exe --settings`).
@@ -40,7 +42,8 @@ RingLauncher.exe
 | `keys` | 키 조합 전송 | `sequence` (예: `"Win+Tab"`) |
 | `windows` | 실행 중인 창 목록(동적) | — |
 | `submenu` | 바깥 링으로 펼쳐지는 하위 메뉴 | `items` |
-| `quick` | 빠른 설정 | `action`: `volumeUp`/`volumeDown`/`volumeMute`/`wifi`/`brightness`/`bluetooth` |
+| `search` | 설치된 프로그램 검색 런처 창 열기 | — |
+| `quick` | 빠른 설정 | `action`: `volumeUp`/`volumeDown`/`volumeMute`/`wifi`/`brightness`/`bluetooth`/`start`(시작 메뉴)/`search` |
 | `desktop` | 가상 데스크톱 전환 | `direction`: `next`/`prev` |
 
 아이콘은 `"icon": "glyph:E74F"` (Segoe Fluent Icons 코드포인트) 또는 파일 경로로 지정.

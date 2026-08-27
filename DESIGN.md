@@ -98,6 +98,8 @@ Windows 11 작업 표시줄을 숨기고, 커서 주변 방사형 런처로 대�
 | 가상 데스크톱 | `SendInput(Win+Ctrl+Left/Right)` | 확장: `IVirtualDesktopManager`(공식, 창의 데스크톱 판별만) |
 | 트레이 | `System.Windows.Forms.NotifyIcon` (`UseWindowsForms=true`) | in-box. TaskbarCreated 후 `Visible=false→true` |
 | 앱 실행 | `Process.Start(UseShellExecute=true)` / `ShellExecuteEx` | URI(`ms-settings:`)도 동일 |
+| 시작 메뉴(윈도우 버튼) | `SendInput(VK_LWIN down/up)` | RegisterHotKey로는 단독 수정자 불가 → SendInput로 전송 |
+| 프로그램 검색 | 시작 메뉴 `.lnk` 스캔(`EnumerationOptions.IgnoreInaccessible`) | `%ProgramData%`/`%AppData%` Start Menu. 검색 창은 포커스 필요 → NOACTIVATE 링과 별도 활성 창 |
 
 매니페스트: `<dpiAwareness>PerMonitorV2</dpiAwareness>`, `requestedExecutionLevel level="asInvoker"`.
 

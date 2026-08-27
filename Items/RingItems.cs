@@ -41,6 +41,14 @@ public sealed class KeysItem(string label, KeyCombo combo, ImageSource? icon) : 
     public void Execute() => Native.SendKeys(combo.ModifierVks, combo.Vk);
 }
 
+/// <summary>임의 동작을 실행하는 항목(시작 메뉴 열기 등, 내장 액션용).</summary>
+public sealed class ActionItem(string label, ImageSource? icon, Action action) : IRingItem
+{
+    public string Label => label;
+    public ImageSource? Icon => icon;
+    public void Execute() => action();
+}
+
 public sealed class SubmenuItem(string label, ImageSource? icon, Func<List<IRingItem>> children) : IRingItem
 {
     public string Label => label;
@@ -97,6 +105,7 @@ public static class ItemFactory
                 var next = !string.Equals(c.Direction, "prev", StringComparison.OrdinalIgnoreCase);
                 return new KeysItem(c.Label ?? (next ? "다음 데스크톱" : "이전 데스크톱"),
                     KeyCombo.Parse(next ? "Win+Ctrl+Right" : "Win+Ctrl+Left"), icon ?? IconLoader.Glyph(next ? "E76C" : "E76B"));
+            case "search": return new UI.SearchItem(c.Label ?? "검색", icon ?? IconLoader.Glyph("E721"));
             case "quick":
                 return (c.Action ?? "").ToLowerInvariant() switch
                 {
@@ -106,6 +115,9 @@ public static class ItemFactory
                     "brightness" => new UriItem(c.Label ?? "밝기", "ms-settings:display", icon ?? IconLoader.Glyph("E706")),
                     "wifi" => new UriItem(c.Label ?? "Wi-Fi", "ms-availablenetworks:", icon ?? IconLoader.Glyph("E701")),
                     "bluetooth" => new UriItem(c.Label ?? "Bluetooth", "ms-settings:bluetooth", icon ?? IconLoader.Glyph("E702")),
+                    // 단독 Win 키 → 시작 메뉴("윈도우 버튼"). RegisterHotKey로는 못 하지만 SendInput은 됨.
+                    "start" => new ActionItem(c.Label ?? "시작", icon ?? IconLoader.Glyph("E71D"), () => Native.SendKeys(Array.Empty<int>(), Native.VK_LWIN)),
+                    "search" => new UI.SearchItem(c.Label ?? "검색", icon ?? IconLoader.Glyph("E721")),
                     _ => null,
                 };
             default: return null;
