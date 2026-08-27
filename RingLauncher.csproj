@@ -10,6 +10,8 @@
     <RootNamespace>RingLauncher</RootNamespace>
     <AssemblyName>RingLauncher</AssemblyName>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- WFAC010: WinForms 분석기가 매니페스트 DPI 설정을 지적하나, WPF PMv2는 매니페스트가 정석 -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <!-- publish: dotnet publish -c Release -r win-x64 -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
