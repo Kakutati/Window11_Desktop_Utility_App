@@ -26,8 +26,45 @@ public struct INPUT { public uint type; public INPUTUNION u; }
 [StructLayout(LayoutKind.Sequential)]
 public struct APPBARDATA { public uint cbSize; public IntPtr hWnd; public uint uCallbackMessage; public uint uEdge; public RECT rc; public IntPtr lParam; }
 
+[StructLayout(LayoutKind.Sequential)]
+public struct KBDLLHOOKSTRUCT { public uint vkCode, scanCode, flags, time; public IntPtr dwExtraInfo; }
+
+[StructLayout(LayoutKind.Sequential)]
+public struct MSLLHOOKSTRUCT { public POINT pt; public uint mouseData, flags, time; public IntPtr dwExtraInfo; }
+
+[StructLayout(LayoutKind.Sequential)]
+public struct MSG { public IntPtr hwnd; public uint message; public IntPtr wParam, lParam; public uint time; public POINT pt; }
+
 internal static class Native
 {
+    public const int WH_KEYBOARD_LL = 13, WH_MOUSE_LL = 14;
+    public const uint WM_KEYDOWN = 0x100, WM_KEYUP = 0x101, WM_SYSKEYDOWN = 0x104, WM_SYSKEYUP = 0x105;
+    public const uint WM_MBUTTONDOWN = 0x207, WM_MBUTTONUP = 0x208, WM_QUIT = 0x12;
+    public const uint LLKHF_INJECTED = 0x10, LLMHF_INJECTED = 0x1;
+    public const uint INPUT_MOUSE = 0, MOUSEEVENTF_MIDDLEDOWN = 0x20, MOUSEEVENTF_MIDDLEUP = 0x40;
+    public const int VK_LCONTROL = 0xA2, VK_RCONTROL = 0xA3;
+    /// <summary>우리가 재생한 입력 표식. 훅에서 이 값이면 손대지 않는다.</summary>
+    public static readonly IntPtr InjectMagic = new(0x52494E47); // 'RING'
+
+    public delegate IntPtr HookProc(int code, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32", SetLastError = true)] public static extern IntPtr SetWindowsHookEx(int id, HookProc proc, IntPtr hMod, uint threadId);
+    [DllImport("user32")] public static extern bool UnhookWindowsHookEx(IntPtr hook);
+    [DllImport("user32")] public static extern IntPtr CallNextHookEx(IntPtr hook, int code, IntPtr wParam, IntPtr lParam);
+    [DllImport("kernel32", CharSet = CharSet.Unicode)] public static extern IntPtr GetModuleHandle(string? name);
+    [DllImport("user32")] public static extern int GetMessage(out MSG msg, IntPtr hwnd, uint min, uint max);
+    [DllImport("user32")] public static extern bool PostThreadMessage(uint threadId, uint msg, IntPtr w, IntPtr l);
+    [DllImport("kernel32")] public static extern uint GetCurrentThreadId();
+
+    public static void SendMiddleClick()
+    {
+        var arr = new[]
+        {
+            new INPUT { type = INPUT_MOUSE, u = new INPUTUNION { mi = new MOUSEINPUT { dwFlags = MOUSEEVENTF_MIDDLEDOWN, dwExtraInfo = InjectMagic } } },
+            new INPUT { type = INPUT_MOUSE, u = new INPUTUNION { mi = new MOUSEINPUT { dwFlags = MOUSEEVENTF_MIDDLEUP, dwExtraInfo = InjectMagic } } },
+        };
+        SendInput((uint)arr.Length, arr, Marshal.SizeOf<INPUT>());
+    }
+
     public const uint ABM_GETSTATE = 4, ABM_SETSTATE = 10, ABS_AUTOHIDE = 1, ABS_ALWAYSONTOP = 2;
     public const int SW_HIDE = 0, SW_SHOWNA = 8;
     public const uint EVENT_OBJECT_SHOW = 0x8002, WINEVENT_OUTOFCONTEXT = 0;

@@ -230,14 +230,14 @@ RingController.Open()
 | 4-6 | `icon: "glyph:E74F"` → Segoe Fluent Icons를 32px 비트맵으로 렌더. quick/desktop/submenu 기본 글리프 내장 |
 | 검증 | 서브메뉴 진입-이탈 왕복 깜빡임 없음 / 볼륨·데스크톱 전환 / 시뮬레이션에 outer 시나리오 추가 |
 
-### 단계 5. 훅 트리거
+### 단계 5. 훅 트리거 — 완료
 | # | 세부 항목 |
 |---|---|
-| 5-1 | `LowLevelHookHost`: 전용 STA 스레드에 `WH_KEYBOARD_LL`/`WH_MOUSE_LL`, 콜백은 큐잉만 |
-| 5-2 | `CtrlDoubleTapTrigger`: down-up-down `doubleTapMs` 이내, 사이에 다른 키 없음. 2번째 up = Released |
-| 5-3 | `MiddleHoldTrigger`: down 삼킴 → `holdMs` 내 up이면 `SendInput` 재생(`dwExtraInfo` 매직), 넘기면 Pressed |
-| 5-4 | 훅 생존 감시(30초, 핸들 유효성 + 마지막 이벤트 시각) → 재설치 |
-| 5-5 | 관리자 창 포그라운드 시 훅 트리거 비동작 안내 |
+| 5-1 | `LowLevelHookHost`: 전용 STA 스레드에 `WH_KEYBOARD_LL`/`WH_MOUSE_LL`. 삼킴 판정은 훅 스레드에서 동기(상수 시간), Pressed/Released는 UI 디스패처로 post. `dwExtraInfo == InjectMagic`인 재생 입력은 무시 |
+| 5-2 | `CtrlDoubleTapTrigger`: down-up-down `doubleTapMs` 이내, 직전 Ctrl 누름 이후 다른 키 없음(Ctrl+C 뒤 Ctrl은 제외). 2번째 down/up은 삼킴. toggle이면 다음 더블탭이 Released |
+| 5-3 | `MiddleHoldTrigger`: down 삼킴 → `holdMs` 내 up이면 UI 스레드에서 `SendInput` 재생, 넘기면 Pressed(누른 지점 기준). toggle이면 다음 누름이 Released |
+| 5-4 | 훅 생존 감시 — 미구현(`ponytail:` 표시). 콜백이 상수 시간이라 타임아웃 제거 가능성 낮음. 실사용에서 끊김이 보고되면 30초 주기 재설치 추가 |
+| 5-5 | 시작 로그에 UIPI 안내. 설정 UI(7단계)에서 트리거 선택 시 같은 문구 표시 |
 | 검증 | 1분 빠른 타이핑/스크롤 중 유실 0 / 가운데 짧은 클릭이 브라우저 새 탭으로 정상 전달 |
 
 ### 단계 6. 엣지 케이스
