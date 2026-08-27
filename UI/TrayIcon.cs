@@ -19,12 +19,18 @@ public sealed class TrayIcon : IDisposable
 
         _icon = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = TryLoadAppIcon() ?? SystemIcons.Application,
             Text = "RingLauncher",
             ContextMenuStrip = menu,
             Visible = true,
         };
         _icon.DoubleClick += (_, _) => openSettings();
+    }
+
+    static Icon? TryLoadAppIcon()
+    {
+        try { return Icon.ExtractAssociatedIcon(Environment.ProcessPath!); }
+        catch { return null; }
     }
 
     public void Dispose()

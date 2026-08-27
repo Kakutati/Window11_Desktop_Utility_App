@@ -265,13 +265,13 @@ RingController.Open()
 | 7-9 | 시작 프로그램 등록 토글(`HKCU\...\Run`) |
 | 검증 | UIAutomation으로 창 열기·mode 변경·저장 → config 반영 + 리로드 ✅ / 외부 편집 subRadius → 링 크기 즉시 변경 ✅ / 핫키 충돌 시험 등록 표시 ✅ |
 
-### 단계 8. 배포
+### 단계 8. 배포 — 완료
 | # | 세부 항목 |
 |---|---|
-| 8-1 | `dotnet publish -c Release -r win-x64` 단일 파일, 앱 `.ico` |
-| 8-2 | .NET 8 Desktop Runtime 미설치 안내 확인 |
-| 8-3 | README: 설치·핫키·복구(`--restore-taskbar`) |
-| 검증 | 깨끗한 VM 실행 / 크래시 복구 재확인 |
+| 8-1 | `dotnet publish -c Release -r win-x64` → 단일 exe 228KB(framework-dependent), 링 모양 app.ico 임베드 |
+| 8-2 | framework-dependent라 런타임 미설치 시 OS가 안내 창 표시 |
+| 8-3 | README.md: 설치·핫키·항목 타입·복구·빌드·제약 |
+| 검증 | published exe --selftest 통과 ✅ / 실행·트레이·아이콘(32px) 확인 ✅ / 깨끗한 VM은 미검증 |
 
 ---
 
