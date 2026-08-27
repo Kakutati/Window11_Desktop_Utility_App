@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <RootNamespace>RingLauncher</RootNamespace>
+    <AssemblyName>RingLauncher</AssemblyName>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- publish: dotnet publish -c Release -r win-x64 -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- WinForms 암시적 using 제거: WPF 타입(Application, MessageBox 등)과 충돌 -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+</Project>

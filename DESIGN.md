@@ -136,7 +136,12 @@ RingController.Open()
    └─ Dispatcher.BeginInvoke(selected.Execute)   ← 창 숨긴 뒤 실행해야 SetForegroundWindow 성공
 ```
 
-입력 차단 정책: 링 창은 링 영역 크기만. 투명 픽셀은 클릭 통과(레이어드 창 기본). 마우스 클릭은 링 조작에 불필요(호버 선택)하므로 다른 앱 입력은 차단하지 않음. 키보드는 ESC만 가로챔.
+열린 동안의 마우스 입력 (`GetAsyncKeyState(VK_LBUTTON/RBUTTON)` 전이 감지, hold/toggle 공통):
+- 주 버튼 클릭 — 링 안(outerRadius 이내) 섹터면 실행, 그 외(dead zone·링 바깥)면 이탈
+- 보조 버튼 클릭 — 이탈
+- 트리거 릴리즈(hold) / 재탭(toggle) — 방향 제스처이므로 링 바깥 거리도 해당 방향 섹터로 인정, dead zone이면 이탈
+
+입력 차단 정책: 링 창은 링 영역 크기만. 투명 픽셀은 클릭 통과(레이어드 창 기본). 링 밖 클릭은 이탈 처리와 동시에 아래 앱에도 전달됨(모달 아님). 키보드는 ESC만 가로챔.
 
 ---
 
@@ -151,7 +156,8 @@ RingController.Open()
   },
   "trigger": {
     "type": "hotkey",              // "hotkey" | "ctrlDoubleTap" | "middleHold"
-    "hotkey": "Ctrl+Alt+Space",    // 파서: 수정자+ / VK 이름. Win+Space는 IME 전환이라 기본 제외
+    "hotkey": "Alt+OemTilde",      // Alt+` . 파서: 수정자+WPF Key 이름. Win+Space(IME 전환), Ctrl+Alt+Space(점유됨)는 기본 제외
+    "mode": "hold",                // hold: 누른 채 이동 → 떼면 실행 | toggle: 누르면 열림, 다시 누르거나 클릭하면 실행/이탈
     "doubleTapMs": 300,
     "holdMs": 200
   },
