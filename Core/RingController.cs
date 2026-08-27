@@ -23,6 +23,7 @@ public sealed class RingController
     readonly ITrigger _trigger;
     readonly ShellEventWindow _shell;
     readonly RingConfig _cfg;
+    readonly PolicyConfig _policy;
     readonly Func<List<IRingItem>> _source;
     readonly int _primaryButton, _secondaryButton;
 
@@ -39,9 +40,9 @@ public sealed class RingController
     int _hoverIndex = -1;
     DateTime _hoverSince;
 
-    public RingController(RingWindow win, ITrigger trigger, ShellEventWindow shell, RingConfig cfg, Func<List<IRingItem>> source)
+    public RingController(RingWindow win, ITrigger trigger, ShellEventWindow shell, RingConfig cfg, PolicyConfig policy, Func<List<IRingItem>> source)
     {
-        _win = win; _trigger = trigger; _shell = shell; _cfg = cfg; _source = source;
+        _win = win; _trigger = trigger; _shell = shell; _cfg = cfg; _policy = policy; _source = source;
         // GetAsyncKeyState는 물리 버튼 기준이라 좌우 바꿈 설정을 직접 반영
         var swapped = Native.GetSystemMetrics(Native.SM_SWAPBUTTON) != 0;
         _primaryButton = swapped ? Native.VK_RBUTTON : Native.VK_LBUTTON;
@@ -53,6 +54,7 @@ public sealed class RingController
         _trigger.Pressed += OnPressed;
         _trigger.Released += OnReleased;
         _shell.HotkeyPressed += OnShellHotkey;
+        _shell.SessionLocked += Close;
         _trigger.Start();
     }
 
@@ -63,6 +65,7 @@ public sealed class RingController
         _trigger.Pressed -= OnPressed;
         _trigger.Released -= OnReleased;
         _shell.HotkeyPressed -= OnShellHotkey;
+        _shell.SessionLocked -= Close;
     }
 
     void OnShellHotkey(int id) { if (id == EscHotkeyId) Close(); }
@@ -70,6 +73,12 @@ public sealed class RingController
     void OnPressed(POINT cursor)
     {
         if (_open) return;
+        if (_policy.Fullscreen.Equals("suppress", StringComparison.OrdinalIgnoreCase) && Native.IsFullscreenState())
+        {
+            Log.Write("Suppressed: fullscreen");
+            _trigger.Reset();
+            return;
+        }
         _items = _source(); // 창 목록 등 동적 항목은 열릴 때마다 갱신
         if (_items.Count == 0) return;
         Log.Write("Open: " + string.Join(" | ", _items.Select(i => i.Label)));

@@ -33,6 +33,7 @@ public sealed class TaskbarController : IDisposable
         _cfg = cfg;
         _shell = shell;
         _shell.TaskbarCreated += Reapply;
+        _shell.DisplayChanged += Reapply; // 모니터 구성 변경 시 Explorer가 트레이 창을 다시 만들거나 보일 수 있다
     }
 
     bool IsHideWindow => _cfg.Mode.Equals("hideWindow", StringComparison.OrdinalIgnoreCase);
@@ -143,6 +144,7 @@ public sealed class TaskbarController : IDisposable
     public void Dispose()
     {
         _shell.TaskbarCreated -= Reapply;
+        _shell.DisplayChanged -= Reapply;
         Restore();
     }
 }

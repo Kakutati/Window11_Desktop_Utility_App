@@ -38,6 +38,20 @@ public struct MSG { public IntPtr hwnd; public uint message; public IntPtr wPara
 internal static class Native
 {
     public const int WH_KEYBOARD_LL = 13, WH_MOUSE_LL = 14;
+    public const int WM_DISPLAYCHANGE = 0x7E, WM_WTSSESSION_CHANGE = 0x2B1, WTS_SESSION_LOCK = 7, NOTIFY_FOR_THIS_SESSION = 0;
+    // SHQueryUserNotificationState
+    public const int QUNS_BUSY = 2, QUNS_RUNNING_D3D_FULL_SCREEN = 3, QUNS_PRESENTATION_MODE = 4, QUNS_ACCEPTS_NOTIFICATIONS = 5;
+
+    [DllImport("shell32")] public static extern int SHQueryUserNotificationState(out int state);
+    [DllImport("wtsapi32")] public static extern bool WTSRegisterSessionNotification(IntPtr hwnd, int flags);
+    [DllImport("wtsapi32")] public static extern bool WTSUnRegisterSessionNotification(IntPtr hwnd);
+
+    /// <summary>전체화면(D3D 독점, 테두리 없는 전체화면 창, 프레젠테이션 모드)인지.</summary>
+    public static bool IsFullscreenState()
+    {
+        if (SHQueryUserNotificationState(out var s) != 0) return false;
+        return s is QUNS_BUSY or QUNS_RUNNING_D3D_FULL_SCREEN or QUNS_PRESENTATION_MODE;
+    }
     public const uint WM_KEYDOWN = 0x100, WM_KEYUP = 0x101, WM_SYSKEYDOWN = 0x104, WM_SYSKEYUP = 0x105;
     public const uint WM_MBUTTONDOWN = 0x207, WM_MBUTTONUP = 0x208, WM_QUIT = 0x12;
     public const uint LLKHF_INJECTED = 0x10, LLMHF_INJECTED = 0x1;

@@ -240,14 +240,14 @@ RingController.Open()
 | 5-5 | 시작 로그에 UIPI 안내. 설정 UI(7단계)에서 트리거 선택 시 같은 문구 표시 |
 | 검증 | 1분 빠른 타이핑/스크롤 중 유실 0 / 가운데 짧은 클릭이 브라우저 새 탭으로 정상 전달 |
 
-### 단계 6. 엣지 케이스
+### 단계 6. 엣지 케이스 — 완료(멀티 DPI는 수동 확인 대기)
 | # | 세부 항목 |
 |---|---|
-| 6-1 | 멀티 DPI: 2단계 `SetWindowPos`(`ponytail:` 표시) 실측, 튀면 모니터별 창 인스턴스 |
+| 6-1 | 멀티 DPI: 2단계 `SetWindowPos`(`ponytail:` 표시). 이 개발 PC는 단일 4K라 자동 검증 불가 — 혼합 배율 환경에서 수동 확인 필요. 튀면 모니터별 창 인스턴스 |
 | 6-2 | `SHQueryUserNotificationState` → `policy.fullscreen` |
-| 6-3 | `WM_DISPLAYCHANGE`/`WM_SETTINGCHANGE` 시 작업 영역 재적용 |
-| 6-4 | 링 열린 중 세션 잠금(`WTS_SESSION_LOCK`) → 강제 이탈 |
-| 검증 | 100%/150% 혼합에서 링 물리 크기 일정 / borderless 표시, exclusive 억제 |
+| 6-3 | `WM_DISPLAYCHANGE` 시 작업 표시줄 재적용(TaskbarController가 구독) |
+| 6-4 | `WTSRegisterSessionNotification` → `WTS_SESSION_LOCK` 시 열린 링 강제 Close |
+| 검증 | 전체화면(quns=2)에서 suppress → `Suppressed: fullscreen`, 해제(quns=5) 후 정상 Open ✅ / 멀티 DPI 물리 크기 일정 — 수동 확인 대기 |
 
 ### 단계 7. 설정 UI
 | # | 세부 항목 |

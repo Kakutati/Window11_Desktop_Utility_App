@@ -44,7 +44,7 @@ static class Program
         };
         if (trigger is not HotkeyTrigger)
             Log.Write("훅 트리거: 관리자 권한 창이 활성일 때는 입력이 전달되지 않아 동작하지 않습니다(UIPI). 그 경우 핫키 트리거를 쓰세요.");
-        var ctrl = new RingController(win, trigger, shell, cfg.Ring, source);
+        var ctrl = new RingController(win, trigger, shell, cfg.Ring, cfg.Policy, source);
 
         // 어떤 경로로 죽든 작업 표시줄은 되돌린다 (강제 종료는 상태 파일 + 다음 실행 시 복구)
         app.DispatcherUnhandledException += (_, e) => { Log.Write(e.Exception); taskbar.Restore(); };
