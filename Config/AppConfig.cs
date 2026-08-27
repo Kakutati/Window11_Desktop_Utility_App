@@ -53,7 +53,7 @@ public sealed class ThemeConfig
 public sealed class PolicyConfig
 {
     public string Fullscreen { get; set; } = "suppress"; // suppress | allow
-    public int WindowListMax { get; set; } = 8;
+    public int WindowListMax { get; set; } = 6; // 초과분은 "더 보기" 서브메뉴
 }
 
 /// <summary>모든 항목 타입을 한 클래스로. 타입별로 쓰는 필드만 채운다.</summary>
@@ -125,10 +125,22 @@ public static class ConfigStore
         {
             new() { Type = "app", Label = "터미널", Path = "wt.exe" },
             new() { Type = "app", Label = "탐색기", Path = "explorer.exe" },
-            new() { Type = "app", Label = "메모장", Path = "notepad.exe" },
-            new() { Type = "app", Label = "계산기", Path = "calc.exe" },
-            new() { Type = "uri", Label = "설정", Uri = "ms-settings:" },
-            new() { Type = "keys", Label = "작업 보기", Sequence = "Win+Tab" },
+            new()
+            {
+                Type = "submenu", Label = "빠른 설정", Icon = "glyph:E713",
+                Items = new()
+                {
+                    new() { Type = "quick", Action = "volumeMute" },
+                    new() { Type = "quick", Action = "volumeUp" },
+                    new() { Type = "quick", Action = "volumeDown" },
+                    new() { Type = "quick", Action = "wifi" },
+                    new() { Type = "quick", Action = "brightness" },
+                    new() { Type = "uri", Label = "설정", Uri = "ms-settings:", Icon = "glyph:E713" },
+                },
+            },
+            new() { Type = "keys", Label = "작업 보기", Sequence = "Win+Tab", Icon = "glyph:E7C4" },
+            new() { Type = "desktop", Direction = "next" },
+            new() { Type = "desktop", Direction = "prev" },
             new() { Type = "windows" },
         },
     };

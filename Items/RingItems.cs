@@ -1,5 +1,6 @@
 using System.IO;
 using System.Diagnostics;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -15,6 +16,8 @@ public interface IRingItem
     string Label { get; }
     ImageSource? Icon { get; }
     void Execute();
+    /// <summary>하위 항목이 있으면 바깥 링으로 펼쳐진다. 펼칠 때마다 호출(창 목록 등 동적 자식 지원).</summary>
+    IReadOnlyList<IRingItem>? GetChildren() => null;
 }
 
 public sealed class AppItem(string label, string path, string? args, ImageSource? icon) : IRingItem
@@ -38,50 +41,84 @@ public sealed class KeysItem(string label, KeyCombo combo, ImageSource? icon) : 
     public void Execute() => Native.SendKeys(combo.ModifierVks, combo.Vk);
 }
 
+public sealed class SubmenuItem(string label, ImageSource? icon, Func<List<IRingItem>> children) : IRingItem
+{
+    public string Label => label;
+    public ImageSource? Icon => icon;
+    public void Execute() { /* 부모 자체는 실행 없음 — 컨트롤러가 펼친다 */ }
+    public IReadOnlyList<IRingItem>? GetChildren() => children();
+}
+
 public static class ItemFactory
 {
     /// <summary>
-    /// 링이 열릴 때마다 호출되는 항목 소스. 정적 항목은 한 번만 만들고, `windows`는 호출 시점에 창 목록으로 인라인 확장된다.
+    /// 링이 열릴 때마다 호출되는 항목 소스. 정적 항목은 한 번만 만들고, `windows`는 호출 시점에 창 목록으로 확장된다
+    /// (windowListMax까지 인라인, 나머지는 "더 보기" 서브메뉴).
     /// </summary>
-    public static Func<List<IRingItem>> CreateSource(IEnumerable<ItemConfig> configs, PolicyConfig policy)
+    public static Func<List<IRingItem>> CreateSource(IEnumerable<ItemConfig>? configs, PolicyConfig policy)
     {
         var parts = new List<Func<IEnumerable<IRingItem>>>();
-        foreach (var c in configs)
+        foreach (var c in configs ?? Enumerable.Empty<ItemConfig>())
         {
             if (c.Type.Equals("windows", StringComparison.OrdinalIgnoreCase))
             {
-                parts.Add(() => WindowList.Enumerate(policy.WindowListMax));
+                parts.Add(() =>
+                {
+                    var all = WindowList.Enumerate();
+                    if (all.Count <= policy.WindowListMax) return all;
+                    var rest = all.Skip(policy.WindowListMax).ToList();
+                    return all.Take(policy.WindowListMax)
+                        .Append(new SubmenuItem("더 보기", IconLoader.Glyph("E712"), () => rest));
+                });
                 continue;
             }
             try
             {
-                var item = Create(c);
+                var item = Create(c, policy);
                 if (item != null) parts.Add(() => new[] { item });
-                else Log.Write($"미지원 항목 타입 무시: {c.Type} ({c.Label})");
+                else Log.Write($"미지원 항목: {c.Type} / {c.Action} ({c.Label})");
             }
             catch (Exception ex) { Log.Write($"항목 생성 실패 ({c.Label}): {ex.Message}"); }
         }
         return () => parts.SelectMany(p => p()).ToList();
     }
 
-    static IRingItem? Create(ItemConfig c)
+    static IRingItem? Create(ItemConfig c, PolicyConfig policy)
     {
         var path = c.Path is null ? null : Environment.ExpandEnvironmentVariables(c.Path);
         var icon = IconLoader.Load(c.Icon ?? path);
-        return c.Type.ToLowerInvariant() switch
+        switch (c.Type.ToLowerInvariant())
         {
-            "app" => new AppItem(c.Label ?? Path.GetFileNameWithoutExtension(path) ?? "?", path!, c.Args, icon),
-            "uri" => new UriItem(c.Label ?? c.Uri!, c.Uri!, icon),
-            "keys" => new KeysItem(c.Label ?? c.Sequence!, KeyCombo.Parse(c.Sequence!), icon),
-            _ => null, // windows / submenu / quick / desktop: 이후 단계
-        };
+            case "app": return new AppItem(c.Label ?? Path.GetFileNameWithoutExtension(path) ?? "?", path!, c.Args, icon);
+            case "uri": return new UriItem(c.Label ?? c.Uri!, c.Uri!, icon);
+            case "keys": return new KeysItem(c.Label ?? c.Sequence!, KeyCombo.Parse(c.Sequence!), icon);
+            case "submenu": return new SubmenuItem(c.Label ?? "…", icon ?? IconLoader.Glyph("E712"), CreateSource(c.Items, policy));
+            case "desktop":
+                var next = !string.Equals(c.Direction, "prev", StringComparison.OrdinalIgnoreCase);
+                return new KeysItem(c.Label ?? (next ? "다음 데스크톱" : "이전 데스크톱"),
+                    KeyCombo.Parse(next ? "Win+Ctrl+Right" : "Win+Ctrl+Left"), icon ?? IconLoader.Glyph(next ? "E76C" : "E76B"));
+            case "quick":
+                return (c.Action ?? "").ToLowerInvariant() switch
+                {
+                    "volumeup" => new KeysItem(c.Label ?? "볼륨 +", KeyCombo.Parse("VolumeUp"), icon ?? IconLoader.Glyph("E767")),
+                    "volumedown" => new KeysItem(c.Label ?? "볼륨 −", KeyCombo.Parse("VolumeDown"), icon ?? IconLoader.Glyph("E993")),
+                    "volumemute" => new KeysItem(c.Label ?? "음소거", KeyCombo.Parse("VolumeMute"), icon ?? IconLoader.Glyph("E74F")),
+                    "brightness" => new UriItem(c.Label ?? "밝기", "ms-settings:display", icon ?? IconLoader.Glyph("E706")),
+                    "wifi" => new UriItem(c.Label ?? "Wi-Fi", "ms-availablenetworks:", icon ?? IconLoader.Glyph("E701")),
+                    "bluetooth" => new UriItem(c.Label ?? "Bluetooth", "ms-settings:bluetooth", icon ?? IconLoader.Glyph("E702")),
+                    _ => null,
+                };
+            default: return null;
+        }
     }
 }
 
 public static class IconLoader
 {
+    /// <summary>파일 경로 → 연결 아이콘. "glyph:E74F" → Segoe Fluent Icons 글리프.</summary>
     public static ImageSource? Load(string? file)
     {
+        if (file is not null && file.StartsWith("glyph:", StringComparison.OrdinalIgnoreCase)) return Glyph(file[6..]);
         var full = Resolve(file);
         if (full is null) return null;
         try
@@ -103,6 +140,24 @@ public static class IconLoader
             return src;
         }
         catch { return null; }
+    }
+
+    static readonly Dictionary<string, ImageSource> GlyphCache = new();
+
+    /// <summary>Segoe Fluent Icons 코드포인트(16진) → 32×32 비트맵. ponytail: 흰색 고정, 테마 text 색은 설정 UI 단계에서 연결.</summary>
+    public static ImageSource Glyph(string hex)
+    {
+        if (GlyphCache.TryGetValue(hex, out var cached)) return cached;
+        var text = char.ConvertFromUtf32(Convert.ToInt32(hex, 16));
+        var ft = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+            new Typeface("Segoe Fluent Icons"), 26, Brushes.White, 1.0);
+        var dv = new DrawingVisual();
+        using (var dc = dv.RenderOpen())
+            dc.DrawText(ft, new Point((32 - ft.Width) / 2, (32 - ft.Height) / 2));
+        var bmp = new RenderTargetBitmap(32, 32, 96, 96, PixelFormats.Pbgra32);
+        bmp.Render(dv);
+        bmp.Freeze();
+        return GlyphCache[hex] = bmp;
     }
 
     static string? Resolve(string? file)

@@ -12,10 +12,12 @@ namespace RingLauncher.Core;
 /// <summary>
 /// Idle → Open(프레임마다 히트 테스트 + 마우스 버튼 폴링) → 실행/취소 → Idle.
 /// 열린 동안: 트리거 Released → 하이라이트 항목 실행. 주클릭: 섹터면 실행, 아니면 이탈. 보조클릭/ESC: 이탈.
+/// 서브메뉴 섹터는 바깥쪽으로 밀거나 150ms 머무르면 바깥 링으로 펼쳐지고, 다른 안쪽 섹터/dead zone으로 가면 접힌다.
 /// </summary>
 public sealed class RingController
 {
     const int EscHotkeyId = 2;
+    static readonly TimeSpan DwellToExpand = TimeSpan.FromMilliseconds(150);
 
     readonly RingWindow _win;
     readonly ITrigger _trigger;
@@ -23,12 +25,19 @@ public sealed class RingController
     readonly RingConfig _cfg;
     readonly Func<List<IRingItem>> _source;
     readonly int _primaryButton, _secondaryButton;
-    IReadOnlyList<IRingItem> _items = Array.Empty<IRingItem>();
 
+    IReadOnlyList<IRingItem> _items = Array.Empty<IRingItem>();
     bool _open, _primaryDown, _secondaryDown;
     POINT _center;
     double _scale = 1;
     Hit _hit = Hit.None;
+
+    // 바깥 링(서브메뉴) 상태
+    int _expanded = -1;
+    OuterRing? _outer;
+    IReadOnlyList<IRingItem> _outerItems = Array.Empty<IRingItem>();
+    int _hoverIndex = -1;
+    DateTime _hoverSince;
 
     public RingController(RingWindow win, ITrigger trigger, ShellEventWindow shell, RingConfig cfg, Func<List<IRingItem>> source)
     {
@@ -74,6 +83,7 @@ public sealed class RingController
             Y = Math.Clamp(cursor.Y, mon.Top + half, Math.Max(mon.Top + half, mon.Bottom - half)),
         };
         _hit = Hit.None;
+        _hoverIndex = -1;
         _primaryDown = Native.IsKeyDown(_primaryButton);
         _secondaryDown = Native.IsKeyDown(_secondaryButton);
 
@@ -87,21 +97,25 @@ public sealed class RingController
     void OnFrame(object? sender, EventArgs e)
     {
         Native.GetCursorPos(out var p);
-        double dx = (p.X - _center.X) / _scale, dy = (p.Y - _center.Y) / _scale;
-        var hit = HitTester.Test(dx, dy, _cfg.DeadZone, _cfg.OuterRadius, _cfg.StartAngle, _items.Count);
+        double dx = (p.X - _center.X) / _scale, dy = (p.Y - _center.Y) / _scale, r2 = dx * dx + dy * dy;
+        var hit = HitTester.Test(dx, dy, _cfg.DeadZone, _cfg.OuterRadius, _cfg.StartAngle, _items.Count, _outer);
+        UpdateExpansion(hit, r2);
         if (hit != _hit)
         {
             _hit = hit;
-            _win.Highlight(hit.Zone == HitZone.Inner ? hit.Index : -1);
+            _win.Highlight(
+                inner: hit.Zone == HitZone.Inner ? hit.Index : _expanded,
+                outer: hit.Zone == HitZone.Outer ? hit.Index : -1);
         }
 
         // 버튼 눌림 전이(up→down)만 클릭으로 본다. 링 밖 클릭은 아래 앱에도 전달된다(모달 아님).
-        // 트리거 릴리즈는 방향 제스처라 링 바깥 거리도 허용하지만, 클릭은 링 안(outerRadius 이내)만 선택으로 인정.
+        // 트리거 릴리즈는 방향 제스처라 링 바깥 거리도 허용하지만, 클릭은 링 안(펼쳐졌으면 바깥 링까지)만 선택으로 인정.
         var primary = Native.IsKeyDown(_primaryButton);
         var secondary = Native.IsKeyDown(_secondaryButton);
         if (primary && !_primaryDown)
         {
-            if (dx * dx + dy * dy <= _cfg.OuterRadius * _cfg.OuterRadius) Commit();
+            var limit = _expanded >= 0 ? _cfg.SubRadius : _cfg.OuterRadius;
+            if (r2 <= limit * limit) Commit();
             else Close();
         }
         else if (secondary && !_secondaryDown) Close();
@@ -109,15 +123,68 @@ public sealed class RingController
         _secondaryDown = secondary;
     }
 
+    void UpdateExpansion(Hit hit, double r2)
+    {
+        switch (hit.Zone)
+        {
+            case HitZone.Inner:
+                if (_expanded >= 0 && hit.Index != _expanded) Collapse();
+                if (hit.Index != _hoverIndex) { _hoverIndex = hit.Index; _hoverSince = DateTime.Now; }
+                var pushedOut = r2 > 0.64 * _cfg.OuterRadius * _cfg.OuterRadius; // r > 0.8·outerRadius
+                if (_expanded < 0 && (pushedOut || DateTime.Now - _hoverSince >= DwellToExpand)) TryExpand(hit.Index);
+                break;
+            case HitZone.Dead:
+                if (_expanded >= 0) Collapse();
+                _hoverIndex = -1;
+                break;
+            default: // Outer / None: 펼침 유지
+                _hoverIndex = -1;
+                break;
+        }
+    }
+
+    bool TryExpand(int index)
+    {
+        var children = _items[index].GetChildren();
+        if (children is not { Count: > 0 }) return false;
+        _expanded = index;
+        _outerItems = children;
+        _outer = HitTester.Outer(HitTester.SectorCenter(_cfg.StartAngle, 360, _items.Count, index), children.Count);
+        _win.ShowOuter(children, _outer.Value);
+        Log.Write($"Expand: {_items[index].Label} ({children.Count})");
+        return true;
+    }
+
+    void Collapse()
+    {
+        if (_expanded < 0) return;
+        _expanded = -1;
+        _outer = null;
+        _outerItems = Array.Empty<IRingItem>();
+        _win.HideOuter();
+        Log.Write("Collapse");
+    }
+
     void OnReleased() => Commit();
 
-    /// <summary>하이라이트된 항목이 있으면 실행, 없으면 이탈. 창을 먼저 숨겨야 실행된 앱이 포그라운드를 가져갈 수 있다.</summary>
+    /// <summary>하이라이트된 항목 실행. 서브메뉴 부모면 펼친 채 유지(클릭/ESC로 마무리). 창을 먼저 숨겨야 실행된 앱이 포그라운드를 가져갈 수 있다.</summary>
     void Commit()
     {
         if (!_open) return;
         var hit = _hit;
+        var item = hit.Zone switch
+        {
+            HitZone.Inner => _items[hit.Index],
+            HitZone.Outer => _outerItems[hit.Index],
+            _ => null,
+        };
+        if (item is not null && hit.Zone == HitZone.Inner && item.GetChildren() is { Count: > 0 })
+        {
+            if (_expanded != hit.Index) TryExpand(hit.Index);
+            return;
+        }
         Close();
-        if (hit.Zone == HitZone.Inner) ExecuteWhenKeysUp(_items[hit.Index]);
+        if (item is not null) ExecuteWhenKeysUp(item);
     }
 
     /// <summary>트리거 수정자(Ctrl/Alt)가 아직 눌려 있으면 실행할 키 시퀀스와 섞이므로 떼어질 때까지 대기.</summary>
@@ -141,6 +208,7 @@ public sealed class RingController
         _open = false;
         CompositionTarget.Rendering -= OnFrame;
         Native.UnregisterHotKey(_shell.Handle, EscHotkeyId);
+        Collapse();
         _win.HideRing();
         _trigger.Reset();
     }

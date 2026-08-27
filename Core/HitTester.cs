@@ -41,4 +41,12 @@ public static class HitTester
 
     /// <summary>i번째 섹터의 중심각(도).</summary>
     public static double SectorCenter(double start, double span, int count, int i) => start + span / count * i;
+
+    /// <summary>부모 섹터 중심각을 기준으로 자식 count개를 sectorDeg씩 좌우 대칭 배치(최대 360°).</summary>
+    public static OuterRing Outer(double parentCenter, int count, double sectorDeg = 40)
+    {
+        var span = Math.Min(360, sectorDeg * count);
+        var w = span / count;
+        return new OuterRing(parentCenter - span / 2 + w / 2, span, count);
+    }
 }

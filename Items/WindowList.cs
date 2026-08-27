@@ -19,14 +19,13 @@ public static class WindowList
     static readonly Dictionary<IntPtr, ImageSource?> IconCache = new();
     static readonly uint OwnPid = (uint)Environment.ProcessId;
 
-    /// <summary>Z 순서(위→아래)로 사용자 창을 최대 max개. 현재 포그라운드 창은 전환 대상이 아니므로 제외.</summary>
-    public static List<IRingItem> Enumerate(int max)
+    /// <summary>Z 순서(위→아래)로 사용자 창 전부. 현재 포그라운드 창은 전환 대상이 아니므로 제외.</summary>
+    public static List<IRingItem> Enumerate()
     {
         var list = new List<IRingItem>();
         var fg = Native.GetForegroundWindow();
         Native.EnumWindows((h, _) =>
         {
-            if (list.Count >= max) return false;
             if (h == fg || !IsUserWindow(h)) return true;
             list.Add(new WindowItem(h, Native.WindowTitle(h), IconOf(h)));
             return true;

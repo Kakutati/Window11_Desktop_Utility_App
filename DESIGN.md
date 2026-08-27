@@ -219,15 +219,15 @@ RingController.Open()
 | 3-5 | `policy.windowListMax`까지만 표시. 초과분 "더 보기" 서브메뉴는 단계 4 |
 | 검증 | 최소화 창 복원 ✅ / cloaked 창 제외 ✅ / 관리자 창 포커스 — UAC 없이 자동화 불가, 수동 확인 필요(실패 시 로그에 "창 전환 실패" 기록) |
 
-### 단계 4. 서브메뉴(바깥 링) + 빠른 설정 + 가상 데스크톱
+### 단계 4. 서브메뉴(바깥 링) + 빠른 설정 + 가상 데스크톱 — 완료
 | # | 세부 항목 |
 |---|---|
-| 4-1 | 바깥 링 렌더: 부모 섹터 중심각 기준 ±span, `OuterRing` 히트 테스트 연결 |
-| 4-2 | 진입: 서브메뉴 섹터에서 `r > outerRadius×0.8` 또는 150ms 체류 → 확장, 다른 inner 섹터로 이동 시 접힘 |
+| 4-1 | 바깥 링 렌더: `HitTester.Outer(parentCenter, count)` — 자식당 40°, 부모 중심각 기준 좌우 대칭(최대 360°), 반지름 outerRadius+6 ~ subRadius |
+| 4-2 | 진입: `r > outerRadius×0.8` 또는 150ms 체류 → 펼침. 다른 inner 섹터/dead zone → 접힘. 부모에서 릴리즈/탭/클릭 → 펼친 채 유지(바깥 항목 클릭·ESC로 마무리) |
 | 4-3 | `submenu` 항목(JSON 중첩 `items`) |
 | 4-4 | `quick`: `volumeUp/Down/Mute`(미디어 키), `brightness`/`wifi`/`bluetooth`(`ms-settings:` / `ms-availablenetworks:`) |
 | 4-5 | `desktop`: `next/prev` → `SendInput(Win+Ctrl+←/→)` |
-| 4-6 | 아이콘 없는 항목용 글리프(Segoe Fluent Icons 문자 코드를 `icon`에 지정) |
+| 4-6 | `icon: "glyph:E74F"` → Segoe Fluent Icons를 32px 비트맵으로 렌더. quick/desktop/submenu 기본 글리프 내장 |
 | 검증 | 서브메뉴 진입-이탈 왕복 깜빡임 없음 / 볼륨·데스크톱 전환 / 시뮬레이션에 outer 시나리오 추가 |
 
 ### 단계 5. 훅 트리거

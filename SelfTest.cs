@@ -27,6 +27,12 @@ static class SelfTest
         Check("outer span 밖→None", T(200, 0, outer).Zone == HitZone.None);
         Check("outer 펼침 중 안쪽→inner", T(0, -100, outer).Zone == HitZone.Inner);
 
+        var o3 = HitTester.Outer(-90, 3);
+        Check("Outer(3) 기하", Math.Abs(o3.StartAngle - (-130)) < 1e-9 && Math.Abs(o3.SpanAngle - 120) < 1e-9 && o3.Count == 3);
+        var o12 = HitTester.Outer(0, 12);
+        Check("Outer(12) 360° 상한", Math.Abs(o12.SpanAngle - 360) < 1e-9 && Math.Abs(o12.StartAngle - (-165)) < 1e-9);
+        Check("outer 끝 섹터", T(-153, -128, o3).Index == 0 && T(-128, -153, o3) == new Hit(HitZone.Outer, 0));
+
         var kc = KeyCombo.Parse("Ctrl+Alt+Space");
         Check("KeyCombo", kc.Modifiers == (Native.MOD_CONTROL | Native.MOD_ALT) && kc.Vk == 0x20 && kc.ModifierVks.Length == 2);
 
