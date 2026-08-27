@@ -33,6 +33,11 @@ internal static class Native
     public const uint EVENT_OBJECT_SHOW = 0x8002, WINEVENT_OUTOFCONTEXT = 0;
     public const int OBJID_WINDOW = 0;
 
+    public const long WS_EX_APPWINDOW = 0x40000;
+    public const uint GW_OWNER = 4, DWMWA_CLOAKED = 14, WM_GETICON = 0x7F, ICON_SMALL2 = 2, ICON_BIG = 1;
+    public const uint SMTO_ABORTIFHUNG = 2, PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    public const int GCLP_HICON = -14, SW_RESTORE = 9;
+
     public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
     public delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
 
@@ -46,6 +51,44 @@ internal static class Native
     [DllImport("user32")] public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc cb, uint pid, uint tid, uint flags);
     [DllImport("user32")] public static extern bool UnhookWinEvent(IntPtr hook);
     [DllImport("user32", CharSet = CharSet.Unicode)] public static extern uint RegisterWindowMessage(string name);
+
+    [DllImport("user32")] public static extern IntPtr GetWindow(IntPtr hwnd, uint cmd);
+    [DllImport("user32", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd, System.Text.StringBuilder sb, int max);
+    [DllImport("user32")] public static extern bool IsIconic(IntPtr hwnd);
+    [DllImport("user32")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32")] public static extern void SwitchToThisWindow(IntPtr hwnd, bool altTab);
+    [DllImport("user32")] public static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint msg, IntPtr w, IntPtr l, uint flags, uint timeoutMs, out IntPtr result);
+    [DllImport("user32")] public static extern IntPtr GetClassLongPtr(IntPtr hwnd, int index);
+    [DllImport("user32")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
+    [DllImport("dwmapi")] public static extern int DwmGetWindowAttribute(IntPtr hwnd, uint attr, out int value, int size);
+    [DllImport("kernel32")] public static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+    [DllImport("kernel32", CharSet = CharSet.Unicode)] public static extern bool QueryFullProcessImageName(IntPtr proc, uint flags, System.Text.StringBuilder sb, ref int size);
+    [DllImport("kernel32")] public static extern bool CloseHandle(IntPtr h);
+
+    public static string WindowTitle(IntPtr hwnd)
+    {
+        var sb = new System.Text.StringBuilder(256);
+        GetWindowText(hwnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
+    public static bool IsCloaked(IntPtr hwnd) =>
+        DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, out var v, sizeof(int)) == 0 && v != 0;
+
+    /// <summary>PROCESS_QUERY_LIMITED_INFORMATION은 상승 프로세스에도 허용된다.</summary>
+    public static string? ProcessPath(IntPtr hwnd)
+    {
+        GetWindowThreadProcessId(hwnd, out var pid);
+        var h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+        if (h == IntPtr.Zero) return null;
+        try
+        {
+            var sb = new System.Text.StringBuilder(1024);
+            int size = sb.Capacity;
+            return QueryFullProcessImageName(h, 0, sb, ref size) ? sb.ToString() : null;
+        }
+        finally { CloseHandle(h); }
+    }
 
     public static uint GetAppBarState()
     {

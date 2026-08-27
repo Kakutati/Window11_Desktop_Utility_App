@@ -30,12 +30,12 @@ static class Program
 
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var cfg = ConfigStore.Load();
-        var items = ItemFactory.Create(cfg.Items);
+        var source = ItemFactory.CreateSource(cfg.Items, cfg.Policy);
         using var shell = new ShellEventWindow();
         using var taskbar = new TaskbarController(cfg.Taskbar, shell);
         var win = new RingWindow(cfg.Ring);
         using var trigger = new HotkeyTrigger(shell, cfg.Trigger.Hotkey, toggle: cfg.Trigger.Mode.Equals("toggle", StringComparison.OrdinalIgnoreCase));
-        var ctrl = new RingController(win, trigger, shell, cfg.Ring, items);
+        var ctrl = new RingController(win, trigger, shell, cfg.Ring, source);
 
         // 어떤 경로로 죽든 작업 표시줄은 되돌린다 (강제 종료는 상태 파일 + 다음 실행 시 복구)
         app.DispatcherUnhandledException += (_, e) => { Log.Write(e.Exception); taskbar.Restore(); };
@@ -51,7 +51,7 @@ static class Program
             return 1;
         }
         taskbar.Apply();
-        Log.Write($"시작: 트리거={cfg.Trigger.Hotkey} ({cfg.Trigger.Mode}), 작업 표시줄={cfg.Taskbar.Mode}, 항목={items.Count}");
+        Log.Write($"시작: 트리거={cfg.Trigger.Hotkey} ({cfg.Trigger.Mode}), 작업 표시줄={cfg.Taskbar.Mode}, 항목={cfg.Items.Count}");
 
         using var tray = new TrayIcon(
             restart: () =>

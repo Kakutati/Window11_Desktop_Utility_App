@@ -209,15 +209,15 @@ RingController.Open()
 | 2-8 | `TaskbarCreated` 수신 → 0.5/2/5s 후 재적용 (NotifyIcon은 WinForms가 자체 재등록). 실측: Win11에서 Explorer 재시작 후 브로드캐스트까지 ~9초 걸리고, 그 뒤에도 Explorer가 트레이 창을 몇 번 더 보이게 함 → 훅이 즉시 재숨김 |
 | 검증 | 강제 종료 → `--restore-taskbar` 또는 재실행 시 복구 / Explorer 재시작 → 재숨김 / 두 모드 모두 작업 영역 = 모니터 전체 |
 
-### 단계 3. 실행 중 창 목록
+### 단계 3. 실행 중 창 목록 — 완료 (단계 4 전까지는 안쪽 링에 인라인 확장, 초과분 "더 보기"는 단계 4)
 | # | 세부 항목 |
 |---|---|
 | 3-1 | `WindowListProvider`: `EnumWindows` + 필터(보임, 제목 있음, 오너 없음 또는 APPWINDOW, TOOLWINDOW 아님, `DWMWA_CLOAKED` 아님) |
 | 3-2 | 아이콘: `WM_GETICON`(SendMessageTimeout 200ms) → `GCLP_HICON` → exe 파일 아이콘 폴백 |
 | 3-3 | `ForegroundHelper.Activate(hwnd)`: 최소화면 `SW_RESTORE` → `SetForegroundWindow` → 실패 시 Alt 탭 주입 후 재시도 → `SwitchToThisWindow` |
-| 3-4 | `IRingItem.Children`, `windows` 항목은 링이 열릴 때마다 자식 동적 생성 |
-| 3-5 | `policy.windowListMax` 초과분은 "더 보기" 서브메뉴 |
-| 검증 | 최소화 창 복원 / 다른 가상 데스크톱 창 제외 / 관리자 창 포커스 성공 여부 기록 |
+| 3-4 | `ItemFactory.CreateSource` → 링이 열릴 때마다 호출되는 항목 소스. `windows`는 호출 시점에 창 목록으로 확장(현재 포그라운드 창 제외, Z 순서) |
+| 3-5 | `policy.windowListMax`까지만 표시. 초과분 "더 보기" 서브메뉴는 단계 4 |
+| 검증 | 최소화 창 복원 ✅ / cloaked 창 제외 ✅ / 관리자 창 포커스 — UAC 없이 자동화 불가, 수동 확인 필요(실패 시 로그에 "창 전환 실패" 기록) |
 
 ### 단계 4. 서브메뉴(바깥 링) + 빠른 설정 + 가상 데스크톱
 | # | 세부 항목 |

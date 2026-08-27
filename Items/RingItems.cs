@@ -40,20 +40,28 @@ public sealed class KeysItem(string label, KeyCombo combo, ImageSource? icon) : 
 
 public static class ItemFactory
 {
-    public static List<IRingItem> Create(IEnumerable<ItemConfig> configs)
+    /// <summary>
+    /// 링이 열릴 때마다 호출되는 항목 소스. 정적 항목은 한 번만 만들고, `windows`는 호출 시점에 창 목록으로 인라인 확장된다.
+    /// </summary>
+    public static Func<List<IRingItem>> CreateSource(IEnumerable<ItemConfig> configs, PolicyConfig policy)
     {
-        var list = new List<IRingItem>();
+        var parts = new List<Func<IEnumerable<IRingItem>>>();
         foreach (var c in configs)
         {
+            if (c.Type.Equals("windows", StringComparison.OrdinalIgnoreCase))
+            {
+                parts.Add(() => WindowList.Enumerate(policy.WindowListMax));
+                continue;
+            }
             try
             {
                 var item = Create(c);
-                if (item != null) list.Add(item);
+                if (item != null) parts.Add(() => new[] { item });
                 else Log.Write($"미지원 항목 타입 무시: {c.Type} ({c.Label})");
             }
             catch (Exception ex) { Log.Write($"항목 생성 실패 ({c.Label}): {ex.Message}"); }
         }
-        return list;
+        return () => parts.SelectMany(p => p()).ToList();
     }
 
     static IRingItem? Create(ItemConfig c)
@@ -79,8 +87,18 @@ public static class IconLoader
         try
         {
             using var ico = System.Drawing.Icon.ExtractAssociatedIcon(full);
-            if (ico is null) return null;
-            var src = Imaging.CreateBitmapSourceFromHIcon(ico.Handle, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            return ico is null ? null : FromHIcon(ico.Handle);
+        }
+        catch { return null; }
+    }
+
+    /// <summary>HICON을 복사해 ImageSource로. 원본 핸들 소유권은 호출자에게 남는다.</summary>
+    public static ImageSource? FromHIcon(IntPtr hIcon)
+    {
+        if (hIcon == IntPtr.Zero) return null;
+        try
+        {
+            var src = Imaging.CreateBitmapSourceFromHIcon(hIcon, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
             src.Freeze();
             return src;
         }

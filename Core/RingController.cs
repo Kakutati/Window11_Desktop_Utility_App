@@ -21,17 +21,18 @@ public sealed class RingController
     readonly ITrigger _trigger;
     readonly ShellEventWindow _shell;
     readonly RingConfig _cfg;
-    readonly IReadOnlyList<IRingItem> _items;
+    readonly Func<List<IRingItem>> _source;
     readonly int _primaryButton, _secondaryButton;
+    IReadOnlyList<IRingItem> _items = Array.Empty<IRingItem>();
 
     bool _open, _primaryDown, _secondaryDown;
     POINT _center;
     double _scale = 1;
     Hit _hit = Hit.None;
 
-    public RingController(RingWindow win, ITrigger trigger, ShellEventWindow shell, RingConfig cfg, IReadOnlyList<IRingItem> items)
+    public RingController(RingWindow win, ITrigger trigger, ShellEventWindow shell, RingConfig cfg, Func<List<IRingItem>> source)
     {
-        _win = win; _trigger = trigger; _shell = shell; _cfg = cfg; _items = items;
+        _win = win; _trigger = trigger; _shell = shell; _cfg = cfg; _source = source;
         // GetAsyncKeyState는 물리 버튼 기준이라 좌우 바꿈 설정을 직접 반영
         var swapped = Native.GetSystemMetrics(Native.SM_SWAPBUTTON) != 0;
         _primaryButton = swapped ? Native.VK_RBUTTON : Native.VK_LBUTTON;
@@ -59,7 +60,10 @@ public sealed class RingController
 
     void OnPressed(POINT cursor)
     {
-        if (_open || _items.Count == 0) return;
+        if (_open) return;
+        _items = _source(); // 창 목록 등 동적 항목은 열릴 때마다 갱신
+        if (_items.Count == 0) return;
+        Log.Write("Open: " + string.Join(" | ", _items.Select(i => i.Label)));
 
         var (mon, dpi) = Native.MonitorAt(cursor);
         _scale = dpi / 96.0;

@@ -129,6 +129,7 @@ public static class ConfigStore
             new() { Type = "app", Label = "계산기", Path = "calc.exe" },
             new() { Type = "uri", Label = "설정", Uri = "ms-settings:" },
             new() { Type = "keys", Label = "작업 보기", Sequence = "Win+Tab" },
+            new() { Type = "windows" },
         },
     };
 }
