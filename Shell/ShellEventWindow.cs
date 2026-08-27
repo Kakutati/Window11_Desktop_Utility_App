@@ -9,7 +9,11 @@ namespace RingLauncher.Shell;
 /// </summary>
 public sealed class ShellEventWindow : NativeWindow, IDisposable
 {
+    static readonly int WM_TASKBARCREATED = (int)Native.RegisterWindowMessage("TaskbarCreated");
+
     public event Action<int>? HotkeyPressed;
+    /// <summary>Explorer(작업 표시줄) 재시작 후. 작업 표시줄 상태 재적용 필요.</summary>
+    public event Action? TaskbarCreated;
 
     public ShellEventWindow()
     {
@@ -25,6 +29,8 @@ public sealed class ShellEventWindow : NativeWindow, IDisposable
     {
         if (m.Msg == Native.WM_HOTKEY)
             HotkeyPressed?.Invoke(m.WParam.ToInt32());
+        else if (m.Msg == WM_TASKBARCREATED)
+            TaskbarCreated?.Invoke();
         base.WndProc(ref m);
     }
 

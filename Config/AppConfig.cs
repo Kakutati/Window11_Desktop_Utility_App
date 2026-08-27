@@ -16,8 +16,7 @@ public sealed class AppConfig
 
 public sealed class TaskbarConfig
 {
-    public string Mode { get; set; } = "autohide"; // autohide | hideWindow | none
-    public bool ReclaimWorkArea { get; set; } = true;
+    public string Mode { get; set; } = "autohide"; // autohide | hideWindow(autohide + 창 숨김, 가장자리에서도 안 나옴) | none
 }
 
 public sealed class TriggerConfig

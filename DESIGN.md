@@ -75,7 +75,7 @@ Windows 11 작업 표시줄을 숨기고, 커서 주변 방사형 런처로 대�
 | 지점 | API | 플래그/비고 |
 |---|---|---|
 | 작업 표시줄 자동 숨김 | `SHAppBarMessage(ABM_GETSTATE)` → 저장, `ABM_SETSTATE` | `lParam = ABS_AUTOHIDE \| ABS_ALWAYSONTOP`. 복구 시 저장값 재설정 |
-| 작업 표시줄 창 숨김 | `FindWindow("Shell_TrayWnd")`, `EnumWindows`로 `Shell_SecondaryTrayWnd` 전부, `ShowWindow(SW_HIDE/SW_SHOW)` | 숨겨도 작업 영역은 안 바뀜 → `SystemParametersInfo(SPI_SETWORKAREA, ..., SPIF_SENDCHANGE)` 모니터별. 복구 시 원래 rcWork 재설정 |
+| 작업 표시줄 창 숨김 | autohide 적용 후 `FindWindow("Shell_TrayWnd")` + `Shell_SecondaryTrayWnd` 전부 `ShowWindow(SW_HIDE)`, 복구 `SW_SHOWNA` | `SPI_SETWORKAREA`는 **사용 금지**: Explorer가 1초 내 되돌리고 `SPIF_SENDCHANGE` 브로드캐스트가 메인 스레드를 멈춤(실측). autohide가 작업 영역을 대신 반환 |
 | Explorer가 되살리는 것 감지 | `SetWinEventHook(EVENT_OBJECT_SHOW, WINEVENT_OUTOFCONTEXT)` on Shell_TrayWnd | HideWindow 모드 전용. Win 키·알림 등에 Explorer가 SW_SHOW 하면 재숨김 |
 | Explorer 재시작 | `RegisterWindowMessage("TaskbarCreated")` | top-level 창에만 브로드캐스트. 수신 시 `Reapply()` + NotifyIcon 재등록 |
 | 전역 핫키 | `RegisterHotKey(hwnd, id, MOD_*\|MOD_NOREPEAT, vk)` / `UnregisterHotKey` | 링 열린 동안만 `VK_ESCAPE` 단독 핫키 추가 등록 → ESC 취소를 훅 없이 처리 |
@@ -151,8 +151,7 @@ RingController.Open()
 {
   "version": 1,
   "taskbar": {
-    "mode": "autohide",            // "autohide" | "hideWindow" | "none"
-    "reclaimWorkArea": true        // hideWindow 모드에서 SPI_SETWORKAREA 적용 여부
+    "mode": "autohide"             // "autohide" | "hideWindow"(autohide + 창 숨김, 가장자리에서도 안 나옴) | "none"
   },
   "trigger": {
     "type": "hotkey",              // "hotkey" | "ctrlDoubleTap" | "middleHold"
@@ -194,17 +193,83 @@ RingController.Open()
 
 ## 5. 구현 순서와 검증
 
-| 단계 | 내용 | 검증 |
-|---|---|---|
-| **0. 골격** | 프로젝트, 매니페스트(PMv2, asInvoker), 트레이 아이콘, 단일 인스턴스, 전역 예외 핸들러, config 로드 | 트레이 표시/종료. 잘못된 JSON → 기본값 + 경고 |
-| **1. 링 MVP** | RingWindow(스타일 확장, NOACTIVATE), HotkeyTrigger + 릴리즈 폴링, 고정 앱 항목, HitTester, ESC 핫키, 애니메이션 | 메모장에 타이핑 중 핫키 → 링 뜨고 `GetForegroundWindow` 불변, 타이핑 계속됨. 화면 모서리에서 잘리지 않음. HitTester 단위 검사: 8섹터 경계각/deadZone/바깥 반지름 각 1케이스 |
-| **2. 작업 표시줄** | 두 전략, TaskbarStateStore, TaskbarCreated 재적용, WinEventHook 재숨김 | 정상 종료 → 복구. 작업 관리자 강제 종료 → 재실행 시 복구. `taskkill /f /im explorer.exe; start explorer` → 1초 내 재숨김 + 트레이 복귀. hideWindow 모드: 최대화 창이 하단까지 차지 |
-| **3. 창 목록** | WindowListProvider, 아이콘, ForegroundHelper | 8개 이상 창 → submenu. 최소화 창 복원. 관리자 메모장 포커스 성공 여부 기록(실패 시 Alt 탭 폴백 동작) |
-| **4. 서브메뉴/빠른 설정/데스크톱** | 바깥 링 확장, quick/uri/desktop/keys 항목 | 서브메뉴 진입-이탈 왕복 시 깜빡임 없음. 볼륨 키·데스크톱 전환 동작 |
-| **5. 훅 트리거** | LowLevelHookHost, CtrlDoubleTap, MiddleHold(삼킴+재생) | 1분간 빠른 타이핑/스크롤 중 입력 유실 0. 관리자 창 포커스 상태에서 훅 트리거가 안 되는 것을 확인하고 UI에 안내 |
-| **6. 엣지 케이스** | 멀티 모니터 DPI, 전체화면 정책, DISPLAYCHANGE | 100%/150% 혼합 모니터에서 링 물리 크기 일정, 경계 넘어갈 때 크기 튐 없음. exclusive 전체화면 게임에서 suppress; borderless에서 표시 |
-| **7. 설정 UI** | SettingsWindow, 드래그앤드롭, 핫 리로드 | exe 드롭 → 링에 즉시 반영 |
-| **8. 배포** | `PublishSingleFile`, framework-dependent | 깨끗한 VM(.NET 8 Desktop Runtime만)에서 실행 |
+### 단계 0~1. 골격 + 링 MVP — 완료 (`3156e18`)
+프로젝트/매니페스트/트레이/설정, `RegisterHotKey` 트리거(hold/toggle), NOACTIVATE 오버레이, 히트 테스트(`--selftest`), 클릭 처리(링 안 섹터 → 실행, 밖 → 이탈), app/uri/keys 항목.
+
+### 단계 2. 작업 표시줄 제어 + 복구 — 완료
+| # | 세부 항목 |
+|---|---|
+| 2-1 | `TaskbarController`: mode `autohide` / `hideWindow` / `none` |
+| 2-2 | autohide: `ABM_GETSTATE` 저장 → `ABM_SETSTATE(ABS_AUTOHIDE\|ABS_ALWAYSONTOP)`, Restore 시 저장값 복원 |
+| 2-3 | hideWindow: autohide + `Shell_TrayWnd`/`Shell_SecondaryTrayWnd` `SW_HIDE`, `SetWinEventHook(EVENT_OBJECT_SHOW)`로 되살아나면 재숨김. `SPI_SETWORKAREA` 미사용(실측: Explorer가 되돌림 + 브로드캐스트 행) |
+| 2-4 | `taskbar-state.json`: Apply 직전 원래 상태 기록, Restore 후 삭제 |
+| 2-5 | 시작 시 상태 파일 존재 → 이전 크래시로 판단, 먼저 복구 |
+| 2-6 | 예외 핸들러 3종 + `SessionEnding`에서 Restore |
+| 2-7 | `--restore-taskbar` CLI, 트레이 "작업 표시줄 복구" |
+| 2-8 | `TaskbarCreated` 수신 → 0.5/2/5s 후 재적용 (NotifyIcon은 WinForms가 자체 재등록). 실측: Win11에서 Explorer 재시작 후 브로드캐스트까지 ~9초 걸리고, 그 뒤에도 Explorer가 트레이 창을 몇 번 더 보이게 함 → 훅이 즉시 재숨김 |
+| 검증 | 강제 종료 → `--restore-taskbar` 또는 재실행 시 복구 / Explorer 재시작 → 재숨김 / 두 모드 모두 작업 영역 = 모니터 전체 |
+
+### 단계 3. 실행 중 창 목록
+| # | 세부 항목 |
+|---|---|
+| 3-1 | `WindowListProvider`: `EnumWindows` + 필터(보임, 제목 있음, 오너 없음 또는 APPWINDOW, TOOLWINDOW 아님, `DWMWA_CLOAKED` 아님) |
+| 3-2 | 아이콘: `WM_GETICON`(SendMessageTimeout 200ms) → `GCLP_HICON` → exe 파일 아이콘 폴백 |
+| 3-3 | `ForegroundHelper.Activate(hwnd)`: 최소화면 `SW_RESTORE` → `SetForegroundWindow` → 실패 시 Alt 탭 주입 후 재시도 → `SwitchToThisWindow` |
+| 3-4 | `IRingItem.Children`, `windows` 항목은 링이 열릴 때마다 자식 동적 생성 |
+| 3-5 | `policy.windowListMax` 초과분은 "더 보기" 서브메뉴 |
+| 검증 | 최소화 창 복원 / 다른 가상 데스크톱 창 제외 / 관리자 창 포커스 성공 여부 기록 |
+
+### 단계 4. 서브메뉴(바깥 링) + 빠른 설정 + 가상 데스크톱
+| # | 세부 항목 |
+|---|---|
+| 4-1 | 바깥 링 렌더: 부모 섹터 중심각 기준 ±span, `OuterRing` 히트 테스트 연결 |
+| 4-2 | 진입: 서브메뉴 섹터에서 `r > outerRadius×0.8` 또는 150ms 체류 → 확장, 다른 inner 섹터로 이동 시 접힘 |
+| 4-3 | `submenu` 항목(JSON 중첩 `items`) |
+| 4-4 | `quick`: `volumeUp/Down/Mute`(미디어 키), `brightness`/`wifi`/`bluetooth`(`ms-settings:` / `ms-availablenetworks:`) |
+| 4-5 | `desktop`: `next/prev` → `SendInput(Win+Ctrl+←/→)` |
+| 4-6 | 아이콘 없는 항목용 글리프(Segoe Fluent Icons 문자 코드를 `icon`에 지정) |
+| 검증 | 서브메뉴 진입-이탈 왕복 깜빡임 없음 / 볼륨·데스크톱 전환 / 시뮬레이션에 outer 시나리오 추가 |
+
+### 단계 5. 훅 트리거
+| # | 세부 항목 |
+|---|---|
+| 5-1 | `LowLevelHookHost`: 전용 STA 스레드에 `WH_KEYBOARD_LL`/`WH_MOUSE_LL`, 콜백은 큐잉만 |
+| 5-2 | `CtrlDoubleTapTrigger`: down-up-down `doubleTapMs` 이내, 사이에 다른 키 없음. 2번째 up = Released |
+| 5-3 | `MiddleHoldTrigger`: down 삼킴 → `holdMs` 내 up이면 `SendInput` 재생(`dwExtraInfo` 매직), 넘기면 Pressed |
+| 5-4 | 훅 생존 감시(30초, 핸들 유효성 + 마지막 이벤트 시각) → 재설치 |
+| 5-5 | 관리자 창 포그라운드 시 훅 트리거 비동작 안내 |
+| 검증 | 1분 빠른 타이핑/스크롤 중 유실 0 / 가운데 짧은 클릭이 브라우저 새 탭으로 정상 전달 |
+
+### 단계 6. 엣지 케이스
+| # | 세부 항목 |
+|---|---|
+| 6-1 | 멀티 DPI: 2단계 `SetWindowPos`(`ponytail:` 표시) 실측, 튀면 모니터별 창 인스턴스 |
+| 6-2 | `SHQueryUserNotificationState` → `policy.fullscreen` |
+| 6-3 | `WM_DISPLAYCHANGE`/`WM_SETTINGCHANGE` 시 작업 영역 재적용 |
+| 6-4 | 링 열린 중 세션 잠금(`WTS_SESSION_LOCK`) → 강제 이탈 |
+| 검증 | 100%/150% 혼합에서 링 물리 크기 일정 / borderless 표시, exclusive 억제 |
+
+### 단계 7. 설정 UI
+| # | 세부 항목 |
+|---|---|
+| 7-1 | 트레이 "설정…" → `SettingsWindow` |
+| 7-2 | 핫키 입력 박스: 키 누르면 자동 기록, 즉시 시험 등록 → 충돌(1409) 표시 |
+| 7-3 | 트리거 종류, hold/toggle, 작업 표시줄 모드, 전체화면 정책 → 라디오/콤보 |
+| 7-4 | 반지름·dead zone·애니메이션·색상 슬라이더 + 실시간 미리보기 |
+| 7-5 | 항목 목록 추가/삭제/순서/라벨/아이콘 편집 |
+| 7-6 | exe/lnk 드래그앤드롭 → `app` 항목(lnk 대상 해석) |
+| 7-7 | 저장 시 즉시 적용(트리거 재등록, 작업 표시줄 전략 교체, 항목 재구성) |
+| 7-8 | `FileSystemWatcher` 핫 리로드 |
+| 7-9 | 시작 프로그램 등록 토글(`HKCU\...\Run`) |
+| 검증 | 핫키 충돌 즉시 표시 / 슬라이더 → 미리보기 반영 / 드롭 후 링에 즉시 |
+
+### 단계 8. 배포
+| # | 세부 항목 |
+|---|---|
+| 8-1 | `dotnet publish -c Release -r win-x64` 단일 파일, 앱 `.ico` |
+| 8-2 | .NET 8 Desktop Runtime 미설치 안내 확인 |
+| 8-3 | README: 설치·핫키·복구(`--restore-taskbar`) |
+| 검증 | 깨끗한 VM 실행 / 크래시 복구 재확인 |
 
 ---
 
@@ -224,7 +289,6 @@ RingController.Open()
 | 모니터 경계에서 `WM_DPICHANGED`로 크기 튐 | 1프레임 깜빡임 | 클램핑으로 항상 단일 모니터 안에 위치. 그래도 튀면 모니터별 RingWindow 인스턴스(확장) |
 | 가상 데스크톱 COM 비공개 인터페이스 | 빌드 업데이트로 파손 | SendInput 단축키로 대체(채택). 특정 데스크톱 직접 이동은 미지원 |
 | Explorer 재시작 시 `TaskbarCreated`가 메시지 전용 창엔 안 옴 | 재적용 실패 | ShellEventWindow를 0×0 top-level 툴윈도우로 |
-| `SPI_SETWORKAREA` 복구 누락 시 최대화 창 영역 어긋남 | 크래시 후 레이아웃 이상 | 상태 파일에 원래 rcWork 저장. Explorer 재시작이 항상 원복하므로 안내 |
 | 훅 트리거 릴리즈 중 Win/Ctrl 단독 릴리즈가 시작 메뉴/IME를 건드림 | 부작용 | 트리거 활성 시 릴리즈 이벤트 삼킴(훅 반환 1) — 훅 트리거 한정 |
 
 ---

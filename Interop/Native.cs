@@ -23,8 +23,56 @@ public struct INPUTUNION { [FieldOffset(0)] public MOUSEINPUT mi; [FieldOffset(0
 [StructLayout(LayoutKind.Sequential)]
 public struct INPUT { public uint type; public INPUTUNION u; }
 
+[StructLayout(LayoutKind.Sequential)]
+public struct APPBARDATA { public uint cbSize; public IntPtr hWnd; public uint uCallbackMessage; public uint uEdge; public RECT rc; public IntPtr lParam; }
+
 internal static class Native
 {
+    public const uint ABM_GETSTATE = 4, ABM_SETSTATE = 10, ABS_AUTOHIDE = 1, ABS_ALWAYSONTOP = 2;
+    public const int SW_HIDE = 0, SW_SHOWNA = 8;
+    public const uint EVENT_OBJECT_SHOW = 0x8002, WINEVENT_OUTOFCONTEXT = 0;
+    public const int OBJID_WINDOW = 0;
+
+    public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+    public delegate void WinEventProc(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+
+    [DllImport("shell32")] public static extern UIntPtr SHAppBarMessage(uint msg, ref APPBARDATA data);
+    [DllImport("user32", CharSet = CharSet.Unicode)] public static extern IntPtr FindWindow(string? cls, string? title);
+    [DllImport("user32")] public static extern bool ShowWindow(IntPtr hwnd, int cmd);
+    [DllImport("user32")] public static extern bool IsWindow(IntPtr hwnd);
+    [DllImport("user32")] public static extern bool IsWindowVisible(IntPtr hwnd);
+    [DllImport("user32")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lParam);
+    [DllImport("user32", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr hwnd, System.Text.StringBuilder sb, int max);
+    [DllImport("user32")] public static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc cb, uint pid, uint tid, uint flags);
+    [DllImport("user32")] public static extern bool UnhookWinEvent(IntPtr hook);
+    [DllImport("user32", CharSet = CharSet.Unicode)] public static extern uint RegisterWindowMessage(string name);
+
+    public static uint GetAppBarState()
+    {
+        var d = new APPBARDATA { cbSize = (uint)Marshal.SizeOf<APPBARDATA>() };
+        return (uint)SHAppBarMessage(ABM_GETSTATE, ref d);
+    }
+
+    public static void SetAppBarState(uint state)
+    {
+        var d = new APPBARDATA { cbSize = (uint)Marshal.SizeOf<APPBARDATA>(), lParam = new IntPtr(state) };
+        SHAppBarMessage(ABM_SETSTATE, ref d);
+    }
+
+    public static List<IntPtr> FindWindowsByClass(string cls)
+    {
+        var list = new List<IntPtr>();
+        var sb = new System.Text.StringBuilder(64);
+        EnumWindows((h, _) =>
+        {
+            sb.Clear();
+            GetClassName(h, sb, sb.Capacity);
+            if (sb.ToString() == cls) list.Add(h);
+            return true;
+        }, IntPtr.Zero);
+        return list;
+    }
+
     public const int GWL_EXSTYLE = -20;
     public const long WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000, WS_EX_TOPMOST = 0x8;
     public const int WM_HOTKEY = 0x0312, WM_MOUSEACTIVATE = 0x0021, MA_NOACTIVATE = 3;
