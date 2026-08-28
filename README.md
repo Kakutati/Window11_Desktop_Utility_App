@@ -43,12 +43,20 @@ RingLauncher.exe
 | `windows` | 실행 중인 창 목록(동적) | — |
 | `submenu` | 바깥 링으로 펼쳐지는 하위 메뉴 | `items` |
 | `search` | 설치된 프로그램 검색 런처 창 열기 | — |
+| `settings` | 런처 설정 창 열기 | — |
+| `taskbar` | 작업 표시줄 숨김/표시 토글 | — |
 | `quick` | 빠른 설정 | `action`: `volumeUp`/`volumeDown`/`volumeMute`/`wifi`/`brightness`/`bluetooth`/`start`(시작 메뉴)/`search` |
 | `desktop` | 가상 데스크톱 전환 | `direction`: `next`/`prev` |
 
 아이콘은 `"icon": "glyph:E74F"` (Segoe Fluent Icons 코드포인트) 또는 파일 경로로 지정.
 
-## 작업 표시줄 복구
+## 작업 표시줄 복구 / 재표시
+
+작업 표시줄을 숨긴 상태에서 다시 보이게 하거나 설정에 접근하는 방법:
+
+- **링에서**: 기본 링에 **설정** 항목과, 빠른 설정 안에 **작업 표시줄**(숨김/표시 토글) 항목이 있습니다. 트레이가 안 보여도 링만으로 접근 가능.
+- **마우스**: 화면 맨 아래 끝으로 커서를 가져가면 autohide 작업 표시줄이 잠깐 나타납니다.
+- **트레이**: 아이콘 우클릭 → 작업 표시줄 복구 / 설정….
 
 앱이 비정상 종료해도 다음 실행 시 자동 복구됩니다. 수동 복구:
 

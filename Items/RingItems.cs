@@ -106,6 +106,8 @@ public static class ItemFactory
                 return new KeysItem(c.Label ?? (next ? "다음 데스크톱" : "이전 데스크톱"),
                     KeyCombo.Parse(next ? "Win+Ctrl+Right" : "Win+Ctrl+Left"), icon ?? IconLoader.Glyph(next ? "E76C" : "E76B"));
             case "search": return new UI.SearchItem(c.Label ?? "검색", icon ?? IconLoader.Glyph("E721"));
+            case "settings": return new ActionItem(c.Label ?? "설정", icon ?? IconLoader.Glyph("E713"), () => AppActions.OpenSettings?.Invoke());
+            case "taskbar": return new ActionItem(c.Label ?? "작업 표시줄", icon ?? IconLoader.Glyph("E7F4"), () => AppActions.ToggleTaskbar?.Invoke());
             case "quick":
                 return (c.Action ?? "").ToLowerInvariant() switch
                 {

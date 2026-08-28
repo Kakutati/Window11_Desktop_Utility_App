@@ -44,6 +44,10 @@ static class Program
             return 1;
         }
 
+        // 링 항목이 설정/작업 표시줄에 접근할 수 있게 (작업 표시줄 숨김 시 트레이가 안 보이는 문제 대응)
+        AppActions.OpenSettings = () => ShowSettings(host);
+        AppActions.ToggleTaskbar = host.ToggleTaskbar;
+
         using var tray = new TrayIcon(
             openSettings: () => ShowSettings(host),
             restoreTaskbar: host.RestoreTaskbar,

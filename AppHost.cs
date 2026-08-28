@@ -125,6 +125,7 @@ public sealed class AppHost : IDisposable
     }
 
     public void RestoreTaskbar() => _taskbar.Restore();
+    public void ToggleTaskbar() => _taskbar.Toggle();
 
     public void Dispose()
     {

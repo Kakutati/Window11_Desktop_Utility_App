@@ -39,6 +39,17 @@ public sealed class TaskbarController : IDisposable
     bool IsHideWindow => _cfg.Mode.Equals("hideWindow", StringComparison.OrdinalIgnoreCase);
     bool IsAutoHide => _cfg.Mode.Equals("autohide", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>현재 작업 표시줄을 숨긴 상태인가(적용됨).</summary>
+    public bool IsApplied => _saved is not null;
+
+    /// <summary>링/트레이에서 켜고 끄기. 숨긴 상태면 복구, 아니면 다시 적용.</summary>
+    public void Toggle()
+    {
+        if (IsApplied) Restore();
+        else Apply();
+        Log.Write($"작업 표시줄 토글 → {(IsApplied ? "숨김" : "표시")}");
+    }
+
     public void Apply()
     {
         if (!IsAutoHide && !IsHideWindow) return;
