@@ -28,6 +28,7 @@ public sealed class SearchWindow : Window
 
     SearchWindow()
     {
+        Title = "RingLauncher 검색"; // 타이틀바는 없지만 접근성/식별용
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
@@ -37,6 +38,8 @@ public sealed class SearchWindow : Window
         SizeToContent = SizeToContent.Height;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
+        System.Windows.Automation.AutomationProperties.SetAutomationId(_query, "ringSearchBox");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(_list, "ringSearchList");
         _query.TextChanged += (_, _) => Refresh();
         _query.PreviewKeyDown += OnKey;
         _list.MouseDoubleClick += (_, _) => Launch();
@@ -99,7 +102,7 @@ public sealed class SearchWindow : Window
     void Launch()
     {
         if (_list.SelectedItem is not InstalledApp app) return;
-        try { Process.Start(new ProcessStartInfo(app.LnkPath) { UseShellExecute = true }); }
+        try { app.Launch(); }
         catch (Exception ex) { Log.Write($"검색 실행 실패({app.Name}): {ex.Message}"); }
         Close();
     }

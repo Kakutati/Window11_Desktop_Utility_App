@@ -54,6 +54,7 @@ static class Program
             exit: app.Shutdown);
 
         if (args.Contains("--settings")) ShowSettings(host);
+        if (args.Contains("--search")) UI.SearchWindow.Open();
 
         app.Run();
         host.Dispose();

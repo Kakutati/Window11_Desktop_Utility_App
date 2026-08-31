@@ -24,6 +24,8 @@ RingLauncher.exe
 
 기본 항목에 **검색**(설치된 프로그램을 타이핑으로 찾아 실행)과 **시작**(Windows 시작 메뉴 열기)이 포함됩니다. 검색 창은 ↑/↓ 이동, Enter 실행, ESC/포커스 이탈 시 닫힘.
 
+검색 대상은 시작 메뉴의 **모든 앱 목록(shell:AppsFolder)** — 일반 데스크톱 앱뿐 아니라 **UWP/Microsoft Store 앱**과 Windows **설정** 등도 포함합니다(실행은 `shell:AppsFolder`, COM 열거 실패 시 `.lnk` 스캔으로 폴백).
+
 ## 설정
 
 트레이 아이콘 **더블클릭** 또는 우클릭 → **설정…** (또는 `RingLauncher.exe --settings`).
