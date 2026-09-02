@@ -126,6 +126,13 @@ internal static class Native
     public static bool IsCloaked(IntPtr hwnd) =>
         DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, out var v, sizeof(int)) == 0 && v != 0;
 
+    public static string ClassName(IntPtr hwnd)
+    {
+        var sb = new System.Text.StringBuilder(256);
+        GetClassName(hwnd, sb, sb.Capacity);
+        return sb.ToString();
+    }
+
     /// <summary>PROCESS_QUERY_LIMITED_INFORMATION은 상승 프로세스에도 허용된다.</summary>
     public static string? ProcessPath(IntPtr hwnd)
     {

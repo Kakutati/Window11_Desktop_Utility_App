@@ -89,7 +89,7 @@ Windows 11 작업 표시줄을 숨기고, 커서 주변 방사형 런처로 대�
 | 오버레이 창 스타일 | `GetWindowLongPtr/SetWindowLongPtr(GWL_EXSTYLE)` | `WS_EX_LAYERED`(WPF가 설정) `\| WS_EX_TOOLWINDOW \| WS_EX_NOACTIVATE \| WS_EX_TOPMOST` |
 | 창 위치 | `SetWindowPos(HWND_TOPMOST, x, y, cx, cy, SWP_NOACTIVATE \| SWP_SHOWWINDOW)` | 물리 픽셀 직접 지정(WPF Left/Top 우회) |
 | 활성화 방지 | `WM_MOUSEACTIVATE` → `MA_NOACTIVATE` | `HwndSource.AddHook` |
-| 창 목록 | `EnumWindows`, `IsWindowVisible`, `GetWindow(GW_OWNER)`, `GetWindowLongPtr(GWL_EXSTYLE)`, `GetWindowTextW`, `DwmGetWindowAttribute(DWMWA_CLOAKED)` | 필터: 보임 && 제목≠"" && (오너 없음 \|\| APPWINDOW) && !TOOLWINDOW && !cloaked(다른 가상 데스크톱/UWP 유령 제외) |
+| 창 목록 | `EnumWindows`, `IsWindowVisible`, `GetWindow(GW_OWNER)`, `GetWindowLongPtr(GWL_EXSTYLE)`, `GetWindowTextW`, `GetClassName`, `IVirtualDesktopManager.IsWindowOnCurrentVirtualDesktop` | 필터: 보임 && 제목≠"" && (오너 없음 \|\| APPWINDOW) && !TOOLWINDOW && class≠`Windows.UI.Core.CoreWindow`(시스템 UWP 셸) && 현재 가상 데스크톱. **cloak으로 거르지 않음** — 포커스 없는 UWP(계산기·설정·스토어)는 cloaked라 누락되던 버그 수정 |
 | 창 아이콘 | `SendMessageTimeout(WM_GETICON, ICON_BIG)`, `GetClassLongPtr(GCLP_HICON)`, 실패 시 `SHGetFileInfo(exe, SHGFI_ICON)` | 상승 창엔 SendMessage 차단 → 타임아웃 200ms + 파일 아이콘 폴백 |
 | 프로세스 경로 | `GetWindowThreadProcessId`, `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)`, `QueryFullProcessImageName` | LIMITED는 상승 프로세스에도 허용 |
 | 창 포커스 | `ShowWindow(SW_RESTORE)`(최소화 시), `SetForegroundWindow` | 실패 시 `SendInput(VK_MENU 탭)` 후 재시도. `AttachThreadInput`은 상승 창에 실패하므로 미사용 |

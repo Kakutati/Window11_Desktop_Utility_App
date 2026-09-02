@@ -14,6 +14,12 @@ static class Program
     static int Main(string[] args)
     {
         if (args.Contains("--selftest")) return SelfTest.Run();
+        if (args.Contains("--dump-windows"))
+        {
+            var outp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ringlauncher-windows.txt");
+            System.IO.File.WriteAllLines(outp, Items.WindowList.Enumerate().Select(w => w.Label));
+            return 0;
+        }
         if (args.Contains("--restore-taskbar"))
         {
             Native.AttachConsole(-1);

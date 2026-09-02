@@ -38,8 +38,12 @@ public static class WindowList
         if (!Native.IsWindowVisible(h)) return false;
         var ex = Native.GetWindowLongPtr(h, Native.GWL_EXSTYLE).ToInt64();
         if ((ex & Native.WS_EX_TOOLWINDOW) != 0) return false;
+        // 시스템 UWP 셸(터치 키보드·검색·시작 등)은 최상위 CoreWindow. 실제 UWP 앱은 ApplicationFrameWindow라 유지된다.
+        if (Native.ClassName(h) == "Windows.UI.Core.CoreWindow") return false;
         if (Native.GetWindow(h, Native.GW_OWNER) != IntPtr.Zero && (ex & Native.WS_EX_APPWINDOW) == 0) return false;
-        if (Native.IsCloaked(h)) return false; // 다른 가상 데스크톱, UWP 유령 창
+        // cloak 여부로 거르면 포커스 없는 UWP(계산기·설정·스토어 앱 등)가 누락된다.
+        // 다른 가상 데스크톱의 창만 제외한다.
+        if (!VirtualDesktop.IsOnCurrentDesktop(h)) return false;
         Native.GetWindowThreadProcessId(h, out var pid);
         if (pid == OwnPid) return false;
         return Native.WindowTitle(h).Length > 0;
