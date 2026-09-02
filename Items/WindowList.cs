@@ -19,14 +19,13 @@ public static class WindowList
     static readonly Dictionary<IntPtr, ImageSource?> IconCache = new();
     static readonly uint OwnPid = (uint)Environment.ProcessId;
 
-    /// <summary>Z 순서(위→아래)로 사용자 창 전부. 현재 포그라운드 창은 전환 대상이 아니므로 제외.</summary>
+    /// <summary>Z 순서(위→아래)로 사용자 창 전부. 현재 활성 창도 포함(골라도 그대로 유지, 무해).</summary>
     public static List<IRingItem> Enumerate()
     {
         var list = new List<IRingItem>();
-        var fg = Native.GetForegroundWindow();
         Native.EnumWindows((h, _) =>
         {
-            if (h == fg || !IsUserWindow(h)) return true;
+            if (!IsUserWindow(h)) return true;
             list.Add(new WindowItem(h, Native.WindowTitle(h), IconOf(h)));
             return true;
         }, IntPtr.Zero);
