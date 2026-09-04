@@ -182,10 +182,14 @@ public sealed class ClockCalendarWindow : Window
     static Brush Freeze(Brush b) { b.Freeze(); return b; }
 }
 
-/// <summary>링 항목: 시계/달력 창 열기. Execute는 UI 스레드(링 닫힌 뒤).</summary>
-public sealed class ClockItem(string label, ImageSource? icon) : IRingItem
+/// <summary>
+/// 링 항목: 칸에 현재 시각 + 오늘 날짜를 직접 표시(링이 열릴 때마다 Label을 읽어 갱신).
+/// 선택하면 시계+달력 창을 연다. 아이콘 없이 텍스트만.
+/// </summary>
+public sealed class ClockItem : IRingItem
 {
-    public string Label => label;
-    public ImageSource? Icon => icon;
+    static readonly CultureInfo Ci = CultureInfo.CurrentCulture;
+    public string Label { get { var n = DateTime.Now; return $"{n:H:mm}\n{n.ToString("M월 d일 (ddd)", Ci)}"; } }
+    public ImageSource? Icon => null;
     public void Execute() => ClockCalendarWindow.Open();
 }
