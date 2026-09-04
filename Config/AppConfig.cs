@@ -154,6 +154,7 @@ public static class ConfigStore
                     new() { Type = "uri", Label = "Windows 설정", Uri = "ms-settings:", Icon = "glyph:E713" },
                 },
             },
+            new() { Type = "clock", Label = "시계" },
             new() { Type = "settings", Label = "설정" },
             new() { Type = "keys", Label = "작업 보기", Sequence = "Win+Tab", Icon = "glyph:E7C4" },
             new() { Type = "desktop", Direction = "next" },

@@ -99,6 +99,7 @@ Windows 11 작업 표시줄을 숨기고, 커서 주변 방사형 런처로 대�
 | 트레이 | `System.Windows.Forms.NotifyIcon` (`UseWindowsForms=true`) | in-box. TaskbarCreated 후 `Visible=false→true` |
 | 앱 실행 | `Process.Start(UseShellExecute=true)` / `ShellExecuteEx` | URI(`ms-settings:`)도 동일 |
 | 시작 메뉴(윈도우 버튼) | `SendInput(VK_LWIN down/up)` | RegisterHotKey로는 단독 수정자 불가 → SendInput로 전송 |
+| 시계/달력 | `DispatcherTimer`(1s) + `CultureInfo.CurrentCulture` 포맷 | 작업 표시줄 숨김 시 사라지는 Windows 시계/달력 대체. 포커스 받는 활성 창(링과 별도) |
 | 프로그램 검색 | `shell:AppsFolder` 열거(Shell.Application COM) → UWP/Store/Win32 포함, 실행 `explorer shell:AppsFolder\<AUMID·경로>`. 폴백: 시작 메뉴 `.lnk` 스캔(`IgnoreInaccessible`) | 검색 창은 포커스 필요 → NOACTIVATE 링과 별도 활성 창 |
 
 매니페스트: `<dpiAwareness>PerMonitorV2</dpiAwareness>`, `requestedExecutionLevel level="asInvoker"`.

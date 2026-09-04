@@ -61,6 +61,7 @@ static class Program
 
         if (args.Contains("--settings")) ShowSettings(host);
         if (args.Contains("--search")) UI.SearchWindow.Open();
+        if (args.Contains("--clock")) UI.ClockCalendarWindow.Open();
 
         app.Run();
         host.Dispose();

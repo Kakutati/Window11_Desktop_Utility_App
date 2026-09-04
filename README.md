@@ -45,6 +45,7 @@ RingLauncher.exe
 | `windows` | 실행 중인 창 목록(동적) | — |
 | `submenu` | 바깥 링으로 펼쳐지는 하위 메뉴 | `items` |
 | `search` | 설치된 프로그램 검색 런처 창 열기 | — |
+| `clock`/`calendar` | 시계+달력 패널 열기(실시간 시간·오늘 날짜·월 달력) | — |
 | `settings` | 런처 설정 창 열기 | — |
 | `taskbar` | 작업 표시줄 숨김/표시 토글 | — |
 | `quick` | 빠른 설정 | `action`: `volumeUp`/`volumeDown`/`volumeMute`/`wifi`/`brightness`/`bluetooth`/`start`(시작 메뉴)/`search` |
